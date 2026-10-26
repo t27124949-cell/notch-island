@@ -9,7 +9,7 @@ Turn the MacBook notch (or a virtual pill on Macs without one) into an interacti
 Requires macOS 13 or later and the Swift toolchain (Xcode or `xcode-select --install`).
 
 ```bash
-git clone https://github.com/<your-username>/notch-island.git
+git clone https://github.com/t27124949-cell/notch-island.git
 cd notch-island
 chmod +x build_app.sh
 ./build_app.sh
