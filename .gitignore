@@ -1,0 +1,4 @@
+.build/
+NotchIsland.app/
+.DS_Store
+*.zip
