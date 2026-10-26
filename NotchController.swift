@@ -35,6 +35,8 @@ final class NotchController {
     private var island: IslandView!
     private var cancellables = Set<AnyCancellable>()
     private var activity: NSObjectProtocol?
+    private var monitor: ActivityMonitor?
+    private var peekWork: DispatchWorkItem?
 
     // Pointer polling. The open/close decision is level-triggered: every tick it is recomputed from the
     // pointer position and how long the pointer has been in/out of the zone, so a missed event can't
@@ -121,6 +123,7 @@ final class NotchController {
                 self.note("isOpen = \(open)")
                 self.panel.ignoresMouseEvents = !open
                 if open {
+                    self.peekWork?.cancel()
                     self.panel.orderFrontRegardless()
                 } else {
                     self.insideSince = nil // restart the dwell timer after any close
@@ -129,6 +132,24 @@ final class NotchController {
                 self.island.setOpen(open, animated: true)
             }
             .store(in: &cancellables)
+
+        // Live activities: briefly widen the notch, then tuck it away again.
+        model.$activity
+            .compactMap { $0 }
+            .sink { [weak self] activity in
+                guard let self, !self.model.isOpen else { return }
+                self.note("peek: \(activity.title)")
+                self.island.showPeek(activity)
+                self.peekWork?.cancel()
+                let work = DispatchWorkItem { [weak self] in self?.island.hidePeek() }
+                self.peekWork = work
+                DispatchQueue.main.asyncAfter(deadline: .now() + activity.duration, execute: work)
+            }
+            .store(in: &cancellables)
+
+        let monitor = ActivityMonitor(model: model)
+        monitor.start()
+        self.monitor = monitor
 
         model.$isPinned
             .removeDuplicates()
@@ -174,6 +195,12 @@ final class NotchController {
 
         let mouse = NSEvent.mouseLocation
         let inside = activeZone(on: screen).contains(mouse)
+
+        // The panel is bigger than a short island; let clicks fall through the empty part below it.
+        if model.isOpen {
+            let capture = islandFrame(on: screen).contains(mouse)
+            if panel.ignoresMouseEvents == capture { panel.ignoresMouseEvents = !capture }
+        }
 
         if inside != lastInside {
             lastInside = inside
@@ -224,7 +251,7 @@ final class NotchController {
     /// - Open: the whole expanded panel plus a forgiving margin, so it doesn't close if you drift slightly.
     private func activeZone(on screen: NSScreen) -> NSRect {
         if model.isOpen {
-            return panelFrame(on: screen).insetBy(dx: -12, dy: -12)
+            return islandFrame(on: screen).insetBy(dx: -12, dy: -12)
         }
         let height = model.notchSize.height
         let width = model.notchSize.width + 2 * hotZoneSidePadding
@@ -241,7 +268,7 @@ final class NotchController {
         let zone = screen.map { activeZone(on: $0) }
         let events = log.isEmpty ? "(none yet)" : log.joined(separator: "\n")
         return """
-        Build: v12 (AppKit UI + settings)
+        Build: v22 (tappable now playing)
         Poll ticks: \(pollTicks)   Slow ticks (>0.25s gap): \(slowTicks)   Longest gap: \(String(format: "%.2f", maxGap))s
         Open: \(model.isOpen)   Pinned: \(model.isPinned)   Island shown open: \(island?.isShownOpen ?? false)
         Panel: visible=\(panel.isVisible) onScreen=\(panel.occlusionState.contains(.visible)) level=\(panel.level.rawValue) ignoresMouse=\(panel.ignoresMouseEvents)
@@ -286,6 +313,13 @@ final class NotchController {
             width: size.width,
             height: size.height
         )
+    }
+
+    /// The visible part of the open island (it can be shorter than the panel).
+    private func islandFrame(on screen: NSScreen) -> NSRect {
+        let width = model.openSize.width
+        let height = model.islandHeight
+        return NSRect(x: screen.frame.midX - width / 2, y: screen.frame.maxY - height, width: width, height: height)
     }
 
     private func positionPanel() {

@@ -65,6 +65,8 @@ class TabContentView: NSView {
     /// Set by the island: ask it to stay open (while typing) or to close (after launching something).
     var requestPin: (() -> Void)?
     var requestDismiss: (() -> Void)?
+    /// Keeps the island open while `body` runs (used around pop-up menus, which run their own event loop).
+    var holdOpen: ((() -> Void) -> Void)?
 
     /// Called after the frame is set: position children using `bounds`.
     func layoutContents() {}
@@ -374,12 +376,25 @@ final class SeekSlider: NSSlider {
     }
 }
 
+/// A transparent, clickable area with a hand cursor.
+final class LinkOverlay: ClickableView {
+    override func resetCursorRects() {
+        addCursorRect(bounds, cursor: .pointingHand)
+    }
+}
+
 final class NowPlayingTabView: TabContentView {
     private let store: NowPlayingStore
     private let settings: SettingsStore
     private let artwork = NSImageView()
     private let titleLabel = UI.label("", size: 16, weight: .semibold)
     private let artistLabel = UI.label("", size: 13, color: UI.dim())
+    private let albumLabel = UI.label("", size: 12, color: UI.dim(0.5))
+    // Invisible tap targets laid over the artwork and labels.
+    private let artworkLink = LinkOverlay()
+    private let titleLink = LinkOverlay()
+    private let artistLink = LinkOverlay()
+    private let albumLink = LinkOverlay()
     private let messageLabel = UI.label("", size: 11, color: UI.dim(), lines: 3)
     private let lyricsView = LyricsView(frame: .zero)
     private let seekSlider = SeekSlider(frame: .zero)
@@ -410,7 +425,24 @@ final class NowPlayingTabView: TabContentView {
         artwork.layer?.masksToBounds = true
         artwork.layer?.backgroundColor = UI.dim(0.1).cgColor
 
-        for view in [artwork, titleLabel, artistLabel, messageLabel, lyricsView,
+        artworkLink.toolTip = "Open in the player"
+        titleLink.toolTip = "Open in the player"
+        artistLink.toolTip = "Search this artist"
+        albumLink.toolTip = "Search this album"
+        artworkLink.onClick = { [weak self] in self?.store.openInPlayer(); self?.requestDismiss?() }
+        titleLink.onClick = { [weak self] in self?.store.openInPlayer(); self?.requestDismiss?() }
+        artistLink.onClick = { [weak self] in
+            guard let artist = self?.store.track?.artist, !artist.isEmpty else { return }
+            self?.store.search(artist)
+            self?.requestDismiss?()
+        }
+        albumLink.onClick = { [weak self] in
+            guard let track = self?.store.track, !track.album.isEmpty else { return }
+            self?.store.search("\(track.album) \(track.artist)")
+            self?.requestDismiss?()
+        }
+
+        for view in [artwork, titleLabel, artistLabel, albumLabel, artworkLink, titleLink, artistLink, albumLink, messageLabel, lyricsView,
                      seekSlider, elapsedLabel, remainingLabel,
                      previousButton, playButton, nextButton, settingsButton] as [NSView] {
             addSubview(view)
@@ -467,8 +499,13 @@ final class NowPlayingTabView: TabContentView {
         remainingLabel.frame = NSRect(x: columnW - 40, y: seekY + 3, width: 40, height: 14)
         seekSlider.frame = NSRect(x: 38, y: seekY, width: max(columnW - 38 - 44, 10), height: 20)
         artwork.frame = NSRect(x: 0, y: top, width: 84, height: 84)
-        titleLabel.frame = NSRect(x: 100, y: top + 2, width: columnW - 100, height: 22)
-        artistLabel.frame = NSRect(x: 100, y: top + 26, width: columnW - 100, height: 18)
+        titleLabel.frame = NSRect(x: 100, y: top, width: columnW - 100, height: 22)
+        artistLabel.frame = NSRect(x: 100, y: top + 21, width: columnW - 100, height: 16)
+        albumLabel.frame = NSRect(x: 100, y: top + 37, width: columnW - 100, height: 14)
+        artworkLink.frame = artwork.frame
+        titleLink.frame = titleLabel.frame
+        artistLink.frame = artistLabel.frame
+        albumLink.frame = albumLabel.frame
         messageLabel.frame = NSRect(x: 100, y: top + 26, width: columnW - 120, height: 44)
         previousButton.frame = NSRect(x: 100, y: top + 52, width: 32, height: 32)
         playButton.frame = NSRect(x: 142, y: top + 50, width: 36, height: 36)
@@ -499,6 +536,8 @@ final class NowPlayingTabView: TabContentView {
 
     private func update() {
         let hasTrack = store.track != nil
+        for link in [artworkLink, titleLink, artistLink, albumLink] { link.isHidden = !hasTrack }
+        albumLink.isHidden = !hasTrack || (store.track?.album.isEmpty ?? true)
         let denied = !hasTrack && store.permissionDenied
         messageLabel.isHidden = hasTrack
         for button in [previousButton, playButton, nextButton] { button.isHidden = !hasTrack }
@@ -521,14 +560,18 @@ final class NowPlayingTabView: TabContentView {
             titleLabel.stringValue = track.title
             artistLabel.stringValue = track.artist
             artistLabel.isHidden = false
+            albumLabel.stringValue = track.album
+            albumLabel.isHidden = track.album.isEmpty
             playButton.image = UI.symbol(track.isPlaying ? "pause.fill" : "play.fill", size: 22)
         } else if denied {
             titleLabel.stringValue = "Allow automation access"
             artistLabel.isHidden = true
+            albumLabel.isHidden = true
             messageLabel.stringValue = "Let Notch Island control Spotify / Music in System Settings → Privacy & Security → Automation."
         } else {
             titleLabel.stringValue = "Nothing playing"
             artistLabel.isHidden = true
+            albumLabel.isHidden = true
             messageLabel.stringValue = "Start playback in Spotify or Music."
         }
         layoutContents()
@@ -900,6 +943,8 @@ final class ClipRowView: ClickableView {
     private let item: ClipItem
     private let store: ClipboardStore
     private var menuHandler = MenuHandler()
+    private var pressedHere = false
+    private let pinZone: CGFloat = 30
 
     init(item: ClipItem, copied: Bool, width: CGFloat, store: ClipboardStore) {
         self.item = item
@@ -907,7 +952,7 @@ final class ClipRowView: ClickableView {
         super.init(frame: NSRect(x: 0, y: 0, width: width, height: 28))
         wantsLayer = true
         layer?.cornerRadius = 8
-        layer?.backgroundColor = UI.dim(0.08).cgColor
+        layer?.backgroundColor = (item.pinned ? NSColor.systemYellow.withAlphaComponent(0.12) : UI.dim(0.08)).cgColor
 
         let right: NSTextField
         if copied {
@@ -918,19 +963,36 @@ final class ClipRowView: ClickableView {
             right = UI.label(relative.localizedString(for: item.date, relativeTo: Date()),
                              size: 11, color: UI.dim(0.45), alignment: .right)
         }
-        right.frame = NSRect(x: width - 10 - 90, y: 6, width: 90, height: 16)
+        right.frame = NSRect(x: width - pinZone - 80, y: 6, width: 80, height: 16)
         addSubview(right)
 
-        let text = UI.label(item.text.replacingOccurrences(of: "\n", with: " "), size: 12)
-        text.frame = NSRect(x: 10, y: 5, width: width - 20 - 100, height: 18)
-        addSubview(text)
+        let pin = NSImageView(frame: NSRect(x: width - 24, y: 6, width: 16, height: 16))
+        pin.image = UI.symbol(item.pinned ? "pin.fill" : "pin", size: 11, weight: .regular)
+        pin.contentTintColor = item.pinned ? .systemYellow : UI.dim(0.35)
+        pin.imageScaling = .scaleProportionallyDown
+        addSubview(pin)
 
-        onClick = { store.copy(item) }
+        let text = UI.label(item.text.replacingOccurrences(of: "\n", with: " "), size: 12)
+        text.frame = NSRect(x: 10, y: 5, width: width - 20 - pinZone - 80, height: 18)
+        addSubview(text)
     }
 
     required init?(coder: NSCoder) { fatalError("not used") }
 
     override var isFlipped: Bool { true }
+
+    override func mouseDown(with event: NSEvent) { pressedHere = true }
+
+    override func mouseUp(with event: NSEvent) {
+        defer { pressedHere = false }
+        let point = convert(event.locationInWindow, from: nil)
+        guard pressedHere, bounds.contains(point) else { return }
+        if point.x >= bounds.width - pinZone {
+            store.togglePin(item)
+        } else {
+            store.copy(item)
+        }
+    }
 
     override func menu(for event: NSEvent) -> NSMenu? {
         let handler = MenuHandler()
@@ -939,14 +1001,16 @@ final class ClipRowView: ClickableView {
         let item = self.item
         let menu = NSMenu()
         menu.addItem(handler.item("Copy") { store.copy(item) })
+        menu.addItem(handler.item(item.pinned ? "Unpin" : "Pin to top") { store.togglePin(item) })
         menu.addItem(handler.item("Remove") { store.remove(item) })
         return menu
     }
 }
 
-final class ClipboardTabView: TabContentView {
+final class ClipboardTabView: TabContentView, NSSearchFieldDelegate {
     private let store: ClipboardStore
     private let header = UI.label("Clipboard", size: 12, weight: .semibold, color: UI.dim())
+    private let search = PinningSearchField(frame: .zero)
     private let clearButton = ClosureButton(frame: .zero)
     private let emptyIcon = NSImageView()
     private let emptyLabel = UI.label("Copy some text and it shows up here", size: 12, color: UI.dim(0.55), alignment: .center)
@@ -957,12 +1021,16 @@ final class ClipboardTabView: TabContentView {
     init(store: ClipboardStore) {
         self.store = store
         super.init(frame: .zero)
-        clearButton.setText("Clear", size: 11, weight: .medium, color: UI.dim(0.5))
-        clearButton.handler = { [weak store] in store?.clear() }
+        clearButton.handler = { [weak store] in store?.clearUnpinned() }
+        search.placeholderString = "Search clipboard"
+        search.controlSize = .small
+        search.font = NSFont.systemFont(ofSize: 11)
+        search.delegate = self
+        search.onFocus = { [weak self] in self?.requestPin?() }
         emptyIcon.image = UI.symbol("doc.on.clipboard", size: 20, weight: .regular)
         emptyIcon.contentTintColor = UI.dim(0.55)
         scroll.documentView = doc
-        for view in [header, clearButton, emptyIcon, emptyLabel, scroll] as [NSView] { addSubview(view) }
+        for view in [header, search, clearButton, emptyIcon, emptyLabel, scroll] as [NSView] { addSubview(view) }
         cancellable = store.objectWillChange
             .receive(on: DispatchQueue.main)
             .sink { [weak self] _ in self?.rebuild() }
@@ -971,22 +1039,44 @@ final class ClipboardTabView: TabContentView {
 
     required init?(coder: NSCoder) { fatalError("not used") }
 
+    func controlTextDidChange(_ obj: Notification) { rebuild() }
+
     override func layoutContents() {
-        header.frame = NSRect(x: 0, y: 0, width: 200, height: 16)
-        clearButton.frame = NSRect(x: bounds.width - 50, y: 0, width: 50, height: 16)
-        scroll.frame = NSRect(x: 0, y: 24, width: bounds.width, height: bounds.height - 24)
+        header.frame = NSRect(x: 0, y: 2, width: 80, height: 16)
+        clearButton.frame = NSRect(x: bounds.width - 84, y: 2, width: 84, height: 16)
+        search.frame = NSRect(x: 84, y: 0, width: max(bounds.width - 84 - 92, 80), height: 20)
+        scroll.frame = NSRect(x: 0, y: 28, width: bounds.width, height: bounds.height - 28)
         emptyIcon.frame = NSRect(x: bounds.midX - 14, y: bounds.midY - 26, width: 28, height: 28)
         emptyLabel.frame = NSRect(x: 0, y: bounds.midY + 6, width: bounds.width, height: 16)
         rebuild()
     }
 
+    override func deactivate() {
+        window?.makeFirstResponder(nil)
+    }
+
+    private var query: String {
+        search.stringValue.trimmingCharacters(in: .whitespaces)
+    }
+
     private func rebuild() {
-        let items = store.items
+        let all = store.items
+        let matches = query.isEmpty ? all : all.filter { $0.text.localizedCaseInsensitiveContains(query) }
+        // Pinned items first, each group newest first.
+        let items = matches.filter { $0.pinned } + matches.filter { !$0.pinned }
+
+        let hasPinned = all.contains { $0.pinned }
+        clearButton.setText(hasPinned ? "Clear unpinned" : "Clear", size: 11, weight: .medium, color: UI.dim(0.5))
+        clearButton.alignment = .right
+        clearButton.isHidden = all.isEmpty
+        search.isHidden = all.isEmpty
+
         let empty = items.isEmpty
-        clearButton.isHidden = empty
         emptyIcon.isHidden = !empty
         emptyLabel.isHidden = !empty
+        emptyLabel.stringValue = all.isEmpty ? "Copy some text and it shows up here" : "Nothing matches “\(query)”"
         scroll.isHidden = empty
+
         doc.subviews.forEach { $0.removeFromSuperview() }
         let width = max(scroll.bounds.width, 1)
         for (index, item) in items.enumerated() {

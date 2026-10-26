@@ -162,6 +162,8 @@ final class ControlsTabView: TabContentView {
     private let darkTile = ToggleTile(frame: .zero)
     private let awakeTile = ToggleTile(frame: .zero)
     private let sleepTile = ToggleTile(frame: .zero)
+    private let focusTile = ToggleTile(frame: .zero)
+    private var menuHandler = MenuHandler()
     private let shortcutsHeader = UI.label("Open in System Settings", size: 11, weight: .semibold, color: UI.dim(0.5))
     private var shortcutButtons: [ClosureButton] = []
     private var cancellable: AnyCancellable?
@@ -181,6 +183,7 @@ final class ControlsTabView: TabContentView {
         darkTile.onClick = { [weak store] in store?.toggleDarkMode() }
         awakeTile.onClick = { [weak store] in store?.toggleKeepAwake() }
         sleepTile.onClick = { [weak store] in store?.sleepDisplay() }
+        focusTile.onClick = { [weak self] in self?.showFocusMenu() }
 
         let shortcuts: [(String, String)] = [
             ("Wi-Fi", "com.apple.wifi-settings-extension"),
@@ -197,7 +200,12 @@ final class ControlsTabView: TabContentView {
             shortcutButtons.append(button)
         }
 
-        for view in [muteButton, slider, volumeLabel, wifiTile, darkTile, awakeTile, sleepTile, shortcutsHeader] as [NSView] {
+        let shortcutsApp = ClosureButton.pill("Shortcuts app", size: 11, fill: UI.dim(0.1), height: 24) {
+            NSWorkspace.shared.open(URL(fileURLWithPath: "/System/Applications/Shortcuts.app"))
+        }
+        shortcutButtons.append(shortcutsApp)
+
+        for view in [muteButton, slider, volumeLabel, wifiTile, darkTile, awakeTile, sleepTile, focusTile, shortcutsHeader] as [NSView] {
             addSubview(view)
         }
         for button in shortcutButtons { addSubview(button) }
@@ -220,8 +228,8 @@ final class ControlsTabView: TabContentView {
         slider.frame = NSRect(x: 40, y: 3, width: w - 40 - 60, height: 22)
         volumeLabel.frame = NSRect(x: w - 50, y: 5, width: 50, height: 18)
 
-        let tileWidth = (w - 3 * 8) / 4
-        for (index, tile) in [wifiTile, darkTile, awakeTile, sleepTile].enumerated() {
+        let tileWidth = (w - 4 * 8) / 5
+        for (index, tile) in [focusTile, wifiTile, darkTile, awakeTile, sleepTile].enumerated() {
             tile.frame = NSRect(x: CGFloat(index) * (tileWidth + 8), y: 40, width: tileWidth, height: 56)
         }
 
@@ -236,7 +244,28 @@ final class ControlsTabView: TabContentView {
 
     override func activate() { store.refresh() }
 
+    private func showFocusMenu() {
+        let handler = MenuHandler()
+        menuHandler = handler
+        let menu = NSMenu()
+        for mode in store.focusModes {
+            let item = handler.item(mode) { [weak self] in self?.store.setFocus(mode) }
+            item.state = store.focusCurrent == mode ? .on : .off
+            menu.addItem(item)
+        }
+        menu.addItem(.separator())
+        let off = handler.item("Off") { [weak self] in self?.store.setFocus("Off") }
+        off.state = store.focusCurrent == "Off" ? .on : .off
+        menu.addItem(off)
+        let show: () -> Void = { _ = menu.popUp(positioning: nil, at: NSPoint(x: 0, y: self.focusTile.bounds.height + 2), in: self.focusTile) }
+        if let holdOpen { holdOpen(show) } else { show() }
+    }
+
     private func update() {
+        let focusOn = store.focusCurrent != "Off"
+        focusTile.configure(title: "Focus", symbol: focusOn ? "moon.circle.fill" : "moon.circle", on: focusOn,
+                            state: store.focusStatus.isEmpty ? store.focusCurrent : store.focusStatus)
+        focusTile.toolTip = "Runs the Shortcut “Focus <name>” (see the README). Create one per Focus with the “Set Focus” action."
         let silent = store.muted || store.volume < 1
         muteButton.image = UI.symbol(silent ? "speaker.slash.fill" : "speaker.wave.2.fill", size: 14)
         slider.doubleValue = store.volume

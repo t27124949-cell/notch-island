@@ -5,11 +5,24 @@ struct ClipItem: Identifiable, Equatable, Codable {
     let id: UUID
     let text: String
     let date: Date
+    var pinned: Bool
 
-    init(text: String, date: Date = Date(), id: UUID = UUID()) {
+    enum CodingKeys: String, CodingKey { case id, text, date, pinned }
+
+    init(text: String, date: Date = Date(), id: UUID = UUID(), pinned: Bool = false) {
         self.id = id
         self.text = text
         self.date = date
+        self.pinned = pinned
+    }
+
+    // Older saved history has no "pinned" field.
+    init(from decoder: Decoder) throws {
+        let c = try decoder.container(keyedBy: CodingKeys.self)
+        id = try c.decode(UUID.self, forKey: .id)
+        text = try c.decode(String.self, forKey: .text)
+        date = try c.decode(Date.self, forKey: .date)
+        pinned = try c.decodeIfPresent(Bool.self, forKey: .pinned) ?? false
     }
 }
 
@@ -88,8 +101,9 @@ final class ClipboardStore: ObservableObject {
     }
 
     private func add(_ text: String) {
+        let wasPinned = items.first(where: { $0.text == text })?.pinned ?? false
         items.removeAll { $0.text == text }
-        items.insert(ClipItem(text: text), at: 0)
+        items.insert(ClipItem(text: text, pinned: wasPinned), at: 0)
         prune()
         scheduleSave()
     }
@@ -104,7 +118,7 @@ final class ClipboardStore: ObservableObject {
         lastChangeCount = pasteboard.changeCount // don't re-capture our own write
 
         items.removeAll { $0.id == item.id }
-        items.insert(ClipItem(text: item.text, date: Date(), id: item.id), at: 0)
+        items.insert(ClipItem(text: item.text, date: Date(), id: item.id, pinned: item.pinned), at: 0)
         scheduleSave()
 
         lastCopiedID = item.id
@@ -118,7 +132,20 @@ final class ClipboardStore: ObservableObject {
         scheduleSave()
     }
 
-    /// Forget everything, including the copy on disk.
+    func togglePin(_ item: ClipItem) {
+        guard let index = items.firstIndex(where: { $0.id == item.id }) else { return }
+        items[index].pinned.toggle()
+        prune()
+        scheduleSave()
+    }
+
+    /// Forget everything except pinned items.
+    func clearUnpinned() {
+        items.removeAll { !$0.pinned }
+        if items.isEmpty { deleteFile() } else { scheduleSave() }
+    }
+
+    /// Forget everything (pinned too), including the copy on disk.
     func clear() {
         items.removeAll()
         deleteFile()
@@ -127,11 +154,16 @@ final class ClipboardStore: ObservableObject {
     // MARK: Retention
 
     private func prune() {
-        var kept = items
-        if retentionDays > 0, let cutoff = Calendar.current.date(byAdding: .day, value: -retentionDays, to: Date()) {
-            kept = kept.filter { $0.date >= cutoff }
+        // Pinned items are never expired. Items are newest first.
+        let cutoff: Date? = retentionDays > 0
+            ? Calendar.current.date(byAdding: .day, value: -retentionDays, to: Date()) : nil
+        var unpinnedKept = 0
+        let kept = items.filter { item in
+            if item.pinned { return true }
+            if let cutoff, item.date < cutoff { return false }
+            unpinnedKept += 1
+            return unpinnedKept <= maxItems
         }
-        if kept.count > maxItems { kept = Array(kept.prefix(maxItems)) }
         if kept != items { items = kept }
     }
 

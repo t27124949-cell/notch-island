@@ -39,6 +39,44 @@ final class ControlsStore: ObservableObject {
     @Published var darkMode = false
     @Published var keepAwake = false
 
+    // Focus: macOS has no public API to set a Focus, so each one runs a Shortcut named "Focus <name>"
+    // (and "Focus Off"), which you create once in the Shortcuts app with its "Set Focus" action.
+    @Published var focusModes: [String] = ["Do Not Disturb", "Work", "Personal", "Sleep"]
+    @Published var focusCurrent: String = UserDefaults.standard.string(forKey: "focusCurrent") ?? "Off"
+    @Published var focusStatus = ""
+
+    static func parseFocusModes(_ text: String) -> [String] {
+        text.split(separator: ",").map { $0.trimmingCharacters(in: .whitespaces) }.filter { !$0.isEmpty }
+    }
+
+    func setFocus(_ mode: String) {
+        let shortcut = "Focus \(mode)"
+        focusStatus = "Switching…"
+        DispatchQueue.global(qos: .userInitiated).async { [weak self] in
+            let process = Process()
+            process.executableURL = URL(fileURLWithPath: "/usr/bin/shortcuts")
+            process.arguments = ["run", shortcut]
+            process.standardOutput = Pipe()
+            process.standardError = Pipe()
+            var ok = false
+            do {
+                try process.run()
+                process.waitUntilExit()
+                ok = process.terminationStatus == 0
+            } catch {}
+            DispatchQueue.main.async {
+                guard let self else { return }
+                if ok {
+                    self.focusCurrent = mode
+                    UserDefaults.standard.set(mode, forKey: "focusCurrent")
+                    self.focusStatus = ""
+                } else {
+                    self.focusStatus = "Shortcut “\(shortcut)” not found"
+                }
+            }
+        }
+    }
+
     private var wifiDevice: String?
     private var caffeinate: Process?
 

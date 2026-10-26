@@ -15,6 +15,7 @@ struct Track: Equatable {
     var isPlaying: Bool
     var artworkURL: URL?
     var duration: Double = 0   // seconds
+    var album: String = ""
 }
 
 /// Reads and controls Spotify / Apple Music through AppleScript.
@@ -107,6 +108,15 @@ final class NowPlayingStore: ObservableObject {
 
     // MARK: Queries
 
+    /// A cheap check for the song that is playing right now: no artwork, no lyrics, no state changes.
+    /// Used by live activities, so it only talks to players that are already running.
+    func quickTrack() -> Track? {
+        for source in [MusicSource.spotify, MusicSource.music] where isRunning(source) {
+            if let track = query(source), track.isPlaying { return track }
+        }
+        return nil
+    }
+
     private func query(_ source: MusicSource) -> Track? {
         let script: String
         switch source {
@@ -114,14 +124,14 @@ final class NowPlayingStore: ObservableObject {
             script = """
             tell application "Spotify"
                 if player state is stopped then return "stopped"
-                return (player state as string) & "||" & (name of current track) & "||" & (artist of current track) & "||" & (artwork url of current track) & "||" & ((player position as real) as string) & "||" & (((duration of current track) / 1000) as string)
+                return (player state as string) & "||" & (name of current track) & "||" & (artist of current track) & "||" & (artwork url of current track) & "||" & ((player position as real) as string) & "||" & (((duration of current track) / 1000) as string) & "||" & (album of current track)
             end tell
             """
         case .music:
             script = """
             tell application "Music"
                 if player state is stopped then return "stopped"
-                return (player state as string) & "||" & (name of current track) & "||" & (artist of current track) & "||" & "" & "||" & ((player position as real) as string) & "||" & ((duration of current track as real) as string)
+                return (player state as string) & "||" & (name of current track) & "||" & (artist of current track) & "||" & "" & "||" & ((player position as real) as string) & "||" & ((duration of current track as real) as string) & "||" & (album of current track)
             end tell
             """
         }
@@ -139,7 +149,8 @@ final class NowPlayingStore: ObservableObject {
             artist: parts[2],
             isPlaying: parts[0] == "playing",
             artworkURL: parts.count > 3 ? URL(string: parts[3]) : nil,
-            duration: number(5)
+            duration: number(5),
+            album: parts.count > 6 ? parts[6] : ""
         )
     }
 
@@ -153,6 +164,31 @@ final class NowPlayingStore: ObservableObject {
             return nil
         }
         return result.stringValue ?? ""
+    }
+
+    // MARK: Jump to the player
+
+    /// Bring the player to the front, showing the current song when it can.
+    func openInPlayer() {
+        guard let source = track?.source else { return }
+        switch source {
+        case .spotify:
+            run("tell application \"Spotify\" to activate")
+        case .music:
+            run("tell application \"Music\"\nactivate\ntry\nreveal current track\nend try\nend tell")
+        }
+    }
+
+    /// Open a search for `term` inside the app that is playing (artist and album pages can't be opened directly).
+    func search(_ term: String) {
+        guard let source = track?.source,
+              let encoded = term.addingPercentEncoding(withAllowedCharacters: .urlPathAllowed.subtracting(CharacterSet(charactersIn: "/?#&"))) else { return }
+        let address: String
+        switch source {
+        case .spotify: address = "spotify:search:\(encoded)"
+        case .music: address = "music://music.apple.com/search?term=\(encoded)"
+        }
+        if let url = URL(string: address) { NSWorkspace.shared.open(url) }
     }
 
     // MARK: Controls

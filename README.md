@@ -9,7 +9,7 @@ Turn the MacBook notch (or a virtual pill on Macs without one) into an interacti
 Requires macOS 13 or later and the Swift toolchain (Xcode or `xcode-select --install`).
 
 ```bash
-git clone https://github.com/t27124949-cell/notch-island.git
+git clone https://github.com/<your-username>/notch-island.git
 cd notch-island
 chmod +x build_app.sh
 ./build_app.sh
@@ -30,17 +30,18 @@ Hover the notch and it expands into a tabbed panel (tab icons on both sides of t
 | Tab | What it does |
 |---|---|
 | **Home** | Clock, date, battery level |
-| **Quick Controls** | Volume, mute, Wi-Fi, dark mode, keep awake, sleep display |
+| **Quick Controls** | Volume, mute, Wi-Fi, dark mode, keep awake, sleep display, and Focus switching (needs one-time Shortcuts setup, below) |
 | **Open Apps** | Every running app; click to switch, right-click to hide/quit/force quit |
 | **Launcher** | Search and launch any app, plus favourites |
-| **Now Playing** | Spotify / Apple Music track and controls, a drag-to-seek progress bar, plus song lyrics when available (can be turned off in Settings)  Apple Music songs with lyrics saved in the file use those first. |
+| **Now Playing** | Spotify / Apple Music track and controls, a drag-to-seek progress bar, tap the artwork or title to jump to the player and the artist or album to search for it there, plus song lyrics when available (can be turned off in Settings)  Apple Music songs with lyrics saved in the file use those first. |
 | **Calendar** | Next events through tomorrow |
 | **Weather** | Current conditions and forecast (Open-Meteo, no key; change city and °C/°F) |
 | **Shelf** | Drag files onto the notch to park them |
 | **Timer** | Focus countdown |
-| **Clipboard** | Searchable history of text you copy, saved on your Mac between launches |
+| **Clipboard** | Searchable history of text you copy, saved on your Mac between launches. Pin items (the pin icon, or right-click) to keep them at the top and out of the retention clean-up |
 | **Notes** | Scratchpad that autosaves |
 | **System Stats** | CPU (with graph), memory, disk, network speed |
+| **Live notch** | Not a tab. The closed notch shows animated equalizer bars while music plays, or your battery level when idle, and briefly widens to announce a song change, charging, low battery or a finished timer |
 | **Settings** | Turn any tab on/off, hover vs click to open, delays, hover area, start tab, 24-hour clock, clipboard retention, launch at login |
 
 - **Click outside** dismisses the island (can be turned off in Settings). **Pin** keeps it open.
@@ -53,6 +54,9 @@ chmod +x build_app.sh
 open NotchIsland.app
 ```
 Use the built `.app` rather than `swift run`: the permission prompts below need the app's Info.plist.
+
+## Focus setup (one time)
+macOS gives apps no direct way to turn a Focus on or off, so Notch Island runs Apple Shortcuts that do it. In the Shortcuts app, for each Focus you want, create a shortcut named exactly `Focus Work` (or `Focus Do Not Disturb`, `Focus Sleep`, …) containing the **Set Focus** action (Turn Work On). Create one named `Focus Off` with **Set Focus → Turn Off**. Then pick a Focus from the Focus tile in Quick Controls. The list of names is editable in Settings → Focus modes. The tile shows the last Focus you chose; it can't read changes made elsewhere.
 
 ## Permissions (asked the first time you use each tab)
 - **Calendar** — Allow Calendar Access button on the Calendar tab (full access is required to read events).

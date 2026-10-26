@@ -113,6 +113,7 @@ final class SettingsTabView: TabContentView, NSTextFieldDelegate {
     private let loginNote = UI.label("", size: 11, color: .systemOrange)
     private let featuresHeader = UI.label("FEATURES", size: 11, weight: .semibold, color: UI.dim(0.5))
     private let behaviorHeader = UI.label("BEHAVIOR", size: 11, weight: .semibold, color: UI.dim(0.5))
+    private let activitiesHeader = UI.label("LIVE ACTIVITIES", size: 11, weight: .semibold, color: UI.dim(0.5))
     private let clipboardHeader = UI.label("CLIPBOARD HISTORY", size: 11, weight: .semibold, color: UI.dim(0.5))
     private let generalHeader = UI.label("GENERAL", size: 11, weight: .semibold, color: UI.dim(0.5))
     private let aboutLabel = UI.label("Notch Island · settings are saved automatically", size: 11, color: UI.dim(0.4))
@@ -125,9 +126,10 @@ final class SettingsTabView: TabContentView, NSTextFieldDelegate {
         addSubview(scroll)
         buildFeatures()
         buildBehavior()
+        buildActivities()
         buildClipboard()
         buildGeneral()
-        for header in [featuresHeader, behaviorHeader, clipboardHeader, generalHeader] { doc.addSubview(header) }
+        for header in [featuresHeader, behaviorHeader, activitiesHeader, clipboardHeader, generalHeader] { doc.addSubview(header) }
         doc.addSubview(aboutLabel)
 
         cancellable = settings.objectWillChange
@@ -266,9 +268,29 @@ final class SettingsTabView: TabContentView, NSTextFieldDelegate {
             lyricsSwitch.isOn = self.settings.showLyrics
         }
         addKeyRow()
+        addFocusRow()
     }
 
     private let keyField = NSSecureTextField(frame: .zero)
+    private let focusField = NSTextField(frame: .zero)
+
+    private func addFocusRow() {
+        focusField.placeholderString = "Work, Sleep, …"
+        focusField.font = NSFont.systemFont(ofSize: 11)
+        focusField.textColor = .white
+        focusField.isBordered = false
+        focusField.drawsBackground = true
+        focusField.backgroundColor = UI.dim(0.12)
+        focusField.focusRingType = .none
+        focusField.wantsLayer = true
+        focusField.layer?.cornerRadius = 6
+        focusField.delegate = self
+        addRow(SettingRow(title: "Focus modes (comma-separated)", control: focusField, controlWidth: 200))
+        refreshers.append { [weak self] in
+            guard let self, self.focusField.currentEditor() == nil else { return }
+            self.focusField.stringValue = self.settings.focusModes
+        }
+    }
 
     private func addKeyRow() {
         keyField.placeholderString = "optional key"
@@ -291,8 +313,40 @@ final class SettingsTabView: TabContentView, NSTextFieldDelegate {
     func controlTextDidBeginEditing(_ obj: Notification) { requestPin?() }
 
     func controlTextDidEndEditing(_ obj: Notification) {
-        guard (obj.object as? NSTextField) === keyField else { return }
-        settings.musixmatchKey = keyField.stringValue.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard let field = obj.object as? NSTextField else { return }
+        if field === keyField {
+            settings.musixmatchKey = keyField.stringValue.trimmingCharacters(in: .whitespacesAndNewlines)
+        } else if field === focusField {
+            let cleaned = ControlsStore.parseFocusModes(focusField.stringValue).joined(separator: ", ")
+            settings.focusModes = cleaned.isEmpty ? SettingsStore.defaultFocusModes : cleaned
+        }
+    }
+
+    private func buildActivities() {
+        func addSwitchRow(_ title: String, get: @escaping () -> Bool, set: @escaping (Bool) -> Void) {
+            let toggle = PillSwitch(frame: NSRect(x: 0, y: 0, width: 36, height: 20))
+            toggle.onChange = { on in set(on) }
+            addRow(SettingRow(title: title, control: toggle, controlWidth: 36, controlHeight: 20))
+            refreshers.append { toggle.isOn = get() }
+        }
+        addSwitchRow("Show live previews in the notch",
+                     get: { [weak self] in self?.settings.activitiesEnabled ?? true },
+                     set: { [weak self] in self?.settings.activitiesEnabled = $0 })
+        addSwitchRow("   Song changes",
+                     get: { [weak self] in self?.settings.activityMusic ?? true },
+                     set: { [weak self] in self?.settings.activityMusic = $0 })
+        addSwitchRow("   Charging and low battery",
+                     get: { [weak self] in self?.settings.activityBattery ?? true },
+                     set: { [weak self] in self?.settings.activityBattery = $0 })
+        addSwitchRow("   Timer finished",
+                     get: { [weak self] in self?.settings.activityTimer ?? true },
+                     set: { [weak self] in self?.settings.activityTimer = $0 })
+        addSwitchRow("Music animation in the notch while playing",
+                     get: { [weak self] in self?.settings.ambientMusic ?? true },
+                     set: { [weak self] in self?.settings.ambientMusic = $0 })
+        addSwitchRow("Battery level in the notch when idle",
+                     get: { [weak self] in self?.settings.ambientBattery ?? true },
+                     set: { [weak self] in self?.settings.ambientBattery = $0 })
     }
 
     private func buildClipboard() {
@@ -380,7 +434,8 @@ final class SettingsTabView: TabContentView, NSTextFieldDelegate {
         for days in [1, 7, 30, 90, 0] {
             menu.addItem(handler.item(retentionTitle(days)) { [weak self] in self?.settings.clipboardRetentionDays = days })
         }
-        menu.popUp(positioning: nil, at: NSPoint(x: 0, y: retentionButton.bounds.height + 2), in: retentionButton)
+        let show: () -> Void = { _ = menu.popUp(positioning: nil, at: NSPoint(x: 0, y: self.retentionButton.bounds.height + 2), in: self.retentionButton) }
+        if let holdOpen { holdOpen(show) } else { show() }
     }
 
     private func showStartTabMenu() {
@@ -391,7 +446,8 @@ final class SettingsTabView: TabContentView, NSTextFieldDelegate {
         for tab in NotchTab.allCases where settings.isEnabled(tab) {
             menu.addItem(handler.item(tab.title) { [weak self] in self?.settings.startTab = tab.rawValue })
         }
-        menu.popUp(positioning: nil, at: NSPoint(x: 0, y: startTabButton.bounds.height + 2), in: startTabButton)
+        let show: () -> Void = { _ = menu.popUp(positioning: nil, at: NSPoint(x: 0, y: self.startTabButton.bounds.height + 2), in: self.startTabButton) }
+        if let holdOpen { holdOpen(show) } else { show() }
     }
 
     // MARK: Layout
@@ -418,9 +474,10 @@ final class SettingsTabView: TabContentView, NSTextFieldDelegate {
         y += CGFloat((featureCells.count + Int(columns) - 1) / Int(columns)) * 38 + 8
 
         // Rows are in creation order: behavior (9), clipboard (3), general (1).
-        let behaviorRows = Array(rows.prefix(10))
-        let clipboardRows = Array(rows.dropFirst(10).prefix(3))
-        let generalRows = Array(rows.dropFirst(13))
+        let behaviorRows = Array(rows.prefix(11))
+        let activityRows = Array(rows.dropFirst(11).prefix(6))
+        let clipboardRows = Array(rows.dropFirst(17).prefix(3))
+        let generalRows = Array(rows.dropFirst(20))
 
         func layout(_ group: [SettingRow]) {
             for row in group {
@@ -432,6 +489,10 @@ final class SettingsTabView: TabContentView, NSTextFieldDelegate {
 
         place(header: behaviorHeader)
         layout(behaviorRows)
+        y += 6
+
+        place(header: activitiesHeader)
+        layout(activityRows)
         y += 6
 
         place(header: clipboardHeader)

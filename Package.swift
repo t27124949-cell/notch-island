@@ -28,6 +28,7 @@ let package = Package(
                 "IslandTabsMore.swift",
                 "SettingsTab.swift",
                 "Lyrics.swift",
+                "Activities.swift",
             ]
         )
     ]

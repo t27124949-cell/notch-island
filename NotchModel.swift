@@ -48,9 +48,20 @@ enum NotchTab: String, CaseIterable {
 final class NotchModel: ObservableObject {
     @Published var isOpen = false
     @Published var isPinned = false
-    @Published var tab: NotchTab = .home
+    @Published var tab: NotchTab = .home {
+        didSet { islandHeight = NotchModel.openHeight(for: tab) }
+    }
+    /// Height of the open island for the current tab. Short tabs get a short island.
+    @Published var islandHeight: CGFloat = NotchModel.openHeight(for: .home)
     @Published var notchSize = CGSize(width: 190, height: 32)
     @Published var shelf: [URL] = []
+    /// The latest live-activity announcement (shown briefly in the notch).
+    @Published var activity: Activity?
+    /// Ambient state shown by the closed notch: what is playing, and the battery.
+    @Published var ambientTrack: Track?
+    @Published var ambientArtwork: NSImage?
+    @Published var batteryLevel: Int?
+    @Published var batteryCharging = false
 
     let settings = SettingsStore()
     let timer = FocusTimer()
@@ -66,6 +77,18 @@ final class NotchModel: ObservableObject {
     /// Total size of the expanded island (height includes the notch area).
     let openSize = CGSize(width: 680, height: 230)
 
+    /// How tall the open island is for each tab (the notch row is included). Never above `openSize.height`.
+    static func openHeight(for tab: NotchTab) -> CGFloat {
+        switch tab {
+        case .home: return 150
+        case .timer: return 170
+        case .apps: return 180
+        case .shelf: return 200
+        case .nowPlaying: return 210
+        default: return 230
+        }
+    }
+
     private var settingsObserver: AnyCancellable?
 
     init() {
@@ -80,6 +103,7 @@ final class NotchModel: ObservableObject {
         clipboard.configure(persist: settings.clipboardPersist,
                             retentionDays: settings.clipboardRetentionDays,
                             maxItems: settings.clipboardMaxItems)
+        controls.focusModes = ControlsStore.parseFocusModes(settings.focusModes)
         nowPlaying.musixmatchKey = settings.musixmatchKey.trimmingCharacters(in: .whitespacesAndNewlines)
         nowPlaying.lyricsEnabled = settings.showLyrics && settings.isEnabled(.nowPlaying)
         if settings.isEnabled(.clipboard) {
@@ -122,6 +146,8 @@ final class FocusTimer: ObservableObject {
     @Published var total = 25 * 60
     @Published var running = false
     private var timer: Timer?
+    /// Called once when the countdown reaches zero.
+    var onFinish: (() -> Void)?
 
     func set(minutes: Int) {
         stop()
@@ -158,6 +184,7 @@ final class FocusTimer: ObservableObject {
             remaining = 0
             stop()
             NSSound.beep()
+            onFinish?()
         }
     }
 
