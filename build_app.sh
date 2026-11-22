@@ -6,7 +6,17 @@ swift build -c release
 
 APP="NotchIsland.app"
 rm -rf "$APP"
-mkdir -p "$APP/Contents/MacOS"
+mkdir -p "$APP/Contents/MacOS" "$APP/Contents/Resources"
+
+# Build the icon with Apple's own tools so macOS always accepts it
+ICONSET="$(mktemp -d)/AppIcon.iconset"
+mkdir -p "$ICONSET"
+for size in 16 32 128 256 512; do
+    sips -z $size $size Resources/AppIcon.png --out "$ICONSET/icon_${size}x${size}.png" >/dev/null
+    double=$((size * 2))
+    sips -z $double $double Resources/AppIcon.png --out "$ICONSET/icon_${size}x${size}@2x.png" >/dev/null
+done
+iconutil -c icns "$ICONSET" -o "$APP/Contents/Resources/AppIcon.icns"
 cp .build/release/NotchIsland "$APP/Contents/MacOS/NotchIsland"
 
 cat > "$APP/Contents/Info.plist" <<'PLIST'
@@ -15,8 +25,9 @@ cat > "$APP/Contents/Info.plist" <<'PLIST'
 <plist version="1.0">
 <dict>
     <key>CFBundleName</key><string>Notch Island</string>
-    <key>CFBundleIdentifier</key><string>com.example.notchisland</string>
+    <key>CFBundleIdentifier</key><string>io.github.t27124949-cell.notchisland</string>
     <key>CFBundleExecutable</key><string>NotchIsland</string>
+    <key>CFBundleIconFile</key><string>AppIcon</string>
     <key>CFBundlePackageType</key><string>APPL</string>
     <key>CFBundleShortVersionString</key><string>1.1</string>
     <key>LSMinimumSystemVersion</key><string>13.0</string>
@@ -32,5 +43,6 @@ cat > "$APP/Contents/Info.plist" <<'PLIST'
 </plist>
 PLIST
 
+touch "$APP"
 codesign --force --sign - "$APP" >/dev/null 2>&1 || true
 echo "Built $APP — run it with: open $APP"

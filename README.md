@@ -5,17 +5,25 @@ Turn the MacBook notch (or a virtual pill on Macs without one) into an interacti
 ![Notch Island screenshot](docs/screenshot.png)
 <!-- Add a screenshot or GIF at docs/screenshot.png -->
 
-## Install
+## Download (easiest)
+1. Go to the [Releases page](https://github.com/t27124949-cell/notch-island/releases) and download `NotchIsland.zip`.
+2. Unzip it and drag `NotchIsland.app` into your **Applications** folder.
+3. Open it. The app is not notarized by Apple, so macOS will block it the first time: open **System Settings → Privacy & Security**, scroll down and click **Open Anyway** next to Notch Island, then confirm. (On older macOS, right-click the app and choose Open.)
+4. Allow the Calendar and Music/Spotify permission prompts if you want those tabs, and turn on **Open at login** in the app's Settings tab.
+
+Requires macOS 13 or later. It is designed for MacBooks with a notch and shows a virtual pill on other Macs.
+
+## Build it yourself
 Requires macOS 13 or later and the Swift toolchain (Xcode or `xcode-select --install`).
 
 ```bash
-git clone https://github.com/<your-username>/notch-island.git
+git clone https://github.com/t27124949-cell/notch-island.git
 cd notch-island
 chmod +x build_app.sh
 ./build_app.sh
 open NotchIsland.app
 ```
-The app is unsigned, so if macOS blocks it, right-click `NotchIsland.app` and choose Open. Optionally drag it to Applications and enable "Open at login" in its Settings tab.
+The app is unsigned, so if macOS blocks it, open System Settings → Privacy & Security and click Open Anyway. Move it to Applications before enabling "Open at login" in its Settings tab.
 
 ## Privacy
 - Everything runs locally. The only network request is the Weather tab asking [Open-Meteo](https://open-meteo.com) for the forecast of the city you enter.
