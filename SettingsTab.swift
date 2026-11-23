@@ -267,6 +267,13 @@ final class SettingsTabView: TabContentView, NSTextFieldDelegate {
             guard let self else { return }
             lyricsSwitch.isOn = self.settings.showLyrics
         }
+        let autoScrollSwitch = PillSwitch(frame: NSRect(x: 0, y: 0, width: 36, height: 20))
+        autoScrollSwitch.onChange = { [weak self] on in self?.settings.autoScrollLyrics = on }
+        addRow(SettingRow(title: "   Auto-scroll lyrics that have no timing (estimate)", control: autoScrollSwitch, controlWidth: 36, controlHeight: 20))
+        refreshers.append { [weak self] in
+            guard let self else { return }
+            autoScrollSwitch.isOn = self.settings.autoScrollLyrics
+        }
         addKeyRow()
         addFocusRow()
     }

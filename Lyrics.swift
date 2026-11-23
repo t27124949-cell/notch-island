@@ -225,15 +225,38 @@ final class LyricsView: NSView {
     private let scroll = UI.scrollView(horizontal: false)
     private let plainLabel = UI.label("", size: 12, color: UI.dim(0.8), lines: 0)
     private let plainDoc = FlippedView()
+    private let badge = UI.label("Not synced · estimated scroll", size: 9, color: UI.dim(0.4), alignment: .right)
     private var shownIndex = Int.min
+    private var manualScrollUntil = Date.distantPast
+    private var scrollObserver: NSObjectProtocol?
+    private let rowHeight: CGFloat = 28
+
+    /// Set from Settings: scroll lyrics that have no timing, based on how far through the song we are.
+    var autoScrollPlain = true {
+        didSet { if oldValue != autoScrollPlain { refreshBadge() } }
+    }
 
     override init(frame frameRect: NSRect) {
         super.init(frame: frameRect)
-        for row in rows { addSubview(row) }
+        for row in rows {
+            row.wantsLayer = true
+            addSubview(row)
+        }
         addSubview(message)
         plainDoc.addSubview(plainLabel)
         scroll.documentView = plainDoc
         addSubview(scroll)
+        addSubview(badge)          // after the scroll view so it sits on top
+        badge.isHidden = true
+        // If the person scrolls by hand, leave the scroll position alone for a while.
+        scrollObserver = NotificationCenter.default.addObserver(forName: NSScrollView.willStartLiveScrollNotification,
+                                                                object: scroll, queue: .main) { [weak self] _ in
+            self?.manualScrollUntil = Date().addingTimeInterval(8)
+        }
+    }
+
+    deinit {
+        if let scrollObserver { NotificationCenter.default.removeObserver(scrollObserver) }
     }
 
     required init?(coder: NSCoder) { fatalError("not used") }
@@ -244,7 +267,7 @@ final class LyricsView: NSView {
     }
 
     func layoutAll() {
-        let rowH: CGFloat = 28
+        let rowH = rowHeight
         let top = (bounds.height - rowH * 5) / 2
         for (i, row) in rows.enumerated() {
             row.frame = NSRect(x: 0, y: top + CGFloat(i) * rowH, width: bounds.width, height: rowH)
@@ -252,7 +275,34 @@ final class LyricsView: NSView {
         }
         message.frame = NSRect(x: 8, y: (bounds.height - 34) / 2, width: bounds.width - 16, height: 34)
         scroll.frame = bounds
+        badge.frame = NSRect(x: 0, y: bounds.height - 14, width: bounds.width - 6, height: 12)
         layoutPlain()
+    }
+
+    private func refreshBadge() {
+        var isPlain = false
+        if case .plain = state { isPlain = true }
+        badge.isHidden = !(isPlain && autoScrollPlain)
+    }
+
+    /// Estimated scrolling for lyrics without timing. Intros and outros are skipped over a little, but
+    /// long breaks and repeated choruses will drift, which is why this is labelled as an estimate.
+    func updatePlain(position: Double, duration: Double) {
+        guard case .plain = state, autoScrollPlain, duration > 1 else { return }
+        guard Date() >= manualScrollUntil else { return }
+        let overflow = max(plainDoc.frame.height - scroll.bounds.height, 0)
+        guard overflow > 0 else { return }
+        let fraction = min(max(position / duration, 0), 1)
+        let progress = min(max((fraction - 0.08) / 0.84, 0), 1)   // lyrics rarely start at 0:00 or run to the very end
+        let target = CGFloat(progress) * overflow
+        let clip = scroll.contentView
+        if abs(clip.bounds.origin.y - target) < 0.5 { return }
+        NSAnimationContext.runAnimationGroup { context in
+            context.duration = 0.3
+            context.timingFunction = CAMediaTimingFunction(name: .linear)
+            clip.animator().setBoundsOrigin(NSPoint(x: 0, y: target))
+        }
+        scroll.reflectScrolledClipView(clip)
     }
 
     private func layoutPlain() {
@@ -288,15 +338,18 @@ final class LyricsView: NSView {
         let isPlain: Bool = { if case .plain = newState { return true } else { return false } }()
         for row in rows { row.isHidden = !isSynced }
         scroll.isHidden = !isPlain
+        refreshBadge()
         if isSynced { setPosition(0) }
     }
 
-    /// Highlight the line being sung at `seconds`.
+    /// Highlight the line being sung at `seconds`. When the song moves on by one line the rows glide up
+    /// and the new line fades in; jumps (seeking, a new song) change instantly.
     func setPosition(_ seconds: Double) {
         guard !lines.isEmpty else { return }
         var current = -1
         for (i, line) in lines.enumerated() where line.time <= seconds + 0.25 { current = i }
         guard current != shownIndex else { return }
+        let animate = shownIndex != Int.min && current == shownIndex + 1 && window != nil
         shownIndex = current
         for (slot, row) in rows.enumerated() {
             let index = current + slot - 2
@@ -305,6 +358,27 @@ final class LyricsView: NSView {
             row.font = NSFont.systemFont(ofSize: isCurrent ? 15 : 12, weight: isCurrent ? .semibold : .regular)
             let distance = abs(slot - 2)
             row.textColor = isCurrent ? .white : UI.dim(distance == 1 ? 0.5 : 0.28)
+        }
+        guard animate else {
+            for row in rows { row.alphaValue = 1 }
+            layoutAll()
+            return
+        }
+        // Start every row one row lower (this view is flipped, so a bigger y is lower on screen) and let it glide up.
+        let top = (bounds.height - rowHeight * 5) / 2
+        for (slot, row) in rows.enumerated() {
+            let finalFrame = NSRect(x: 0, y: top + CGFloat(slot) * rowHeight, width: bounds.width, height: rowHeight)
+            row.frame = finalFrame.offsetBy(dx: 0, dy: rowHeight)
+            row.alphaValue = slot == 4 ? 0 : (slot == 2 ? 0.55 : 1)
+        }
+        NSAnimationContext.runAnimationGroup { context in
+            context.duration = 0.32
+            context.timingFunction = CAMediaTimingFunction(name: .easeOut)
+            context.allowsImplicitAnimation = true
+            for (slot, row) in rows.enumerated() {
+                row.animator().frame = NSRect(x: 0, y: top + CGFloat(slot) * rowHeight, width: bounds.width, height: rowHeight)
+                row.animator().alphaValue = 1
+            }
         }
     }
 }

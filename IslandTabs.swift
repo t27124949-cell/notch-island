@@ -454,7 +454,10 @@ final class NowPlayingTabView: TabContentView {
             guard let self else { return }
             self.elapsedLabel.stringValue = Self.format(value)
             self.remainingLabel.stringValue = "-" + Self.format(max(0, self.seekSlider.maxValue - value))
-            if self.showingLyrics { self.lyricsView.setPosition(value) }
+            if self.showingLyrics {
+                self.lyricsView.setPosition(value)
+                self.lyricsView.updatePlain(position: value, duration: self.seekSlider.maxValue)
+            }
         }
         seekSlider.onSeek = { [weak store] value in store?.seek(to: value) }
         store.objectWillChange
@@ -521,7 +524,10 @@ final class NowPlayingTabView: TabContentView {
         let timer = Timer(timeInterval: 0.25, repeats: true) { [weak self] _ in
             guard let self else { return }
             let position = self.store.currentPosition()
-            if self.showingLyrics && !self.seekSlider.isDragging { self.lyricsView.setPosition(position) }
+            if self.showingLyrics && !self.seekSlider.isDragging {
+                self.lyricsView.setPosition(position)
+                self.lyricsView.updatePlain(position: position, duration: self.store.track?.duration ?? 0)
+            }
             self.updateSeek(position)
         }
         RunLoop.main.add(timer, forMode: .common)
@@ -545,8 +551,12 @@ final class NowPlayingTabView: TabContentView {
         lyricsView.isHidden = !showingLyrics
         for view in [seekSlider, elapsedLabel, remainingLabel] as [NSView] { view.isHidden = !(hasTrack && showingSeek) }
         updateSeek(store.currentPosition())
+        lyricsView.autoScrollPlain = settings.autoScrollLyrics
         lyricsView.set(showingLyrics ? store.lyrics : .idle)
-        if showingLyrics { lyricsView.setPosition(store.currentPosition()) }
+        if showingLyrics {
+            lyricsView.setPosition(store.currentPosition())
+            lyricsView.updatePlain(position: store.currentPosition(), duration: store.track?.duration ?? 0)
+        }
 
         if let image = store.artwork {
             artwork.image = image
