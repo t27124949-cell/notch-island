@@ -9,6 +9,7 @@ struct CalendarEvent: Identifiable {
     let end: Date
     let isAllDay: Bool
     let color: NSColor
+    var joinURL: URL? = nil   // Zoom / Meet / Teams link found in the event
 }
 
 enum CalendarAccess {
@@ -73,15 +74,69 @@ final class CalendarStore: ObservableObject {
         let predicate = store.predicateForEvents(withStart: now, end: end, calendars: nil)
         let found = store.events(matching: predicate).sorted { $0.startDate < $1.startDate }
 
-        events = found.prefix(10).map { event in
-            CalendarEvent(
-                id: "\(event.eventIdentifier ?? UUID().uuidString)-\(event.startDate.timeIntervalSince1970)",
-                title: event.title ?? "Untitled",
-                start: event.startDate,
-                end: event.endDate,
-                isAllDay: event.isAllDay,
-                color: event.calendar.color ?? NSColor.systemBlue
-            )
+        events = found.prefix(10).map(makeEvent)
+    }
+
+    private func makeEvent(_ event: EKEvent) -> CalendarEvent {
+        CalendarEvent(
+            id: "\(event.eventIdentifier ?? UUID().uuidString)-\(event.startDate.timeIntervalSince1970)",
+            title: event.title ?? "Untitled",
+            start: event.startDate,
+            end: event.endDate,
+            isAllDay: event.isAllDay,
+            color: event.calendar.color ?? NSColor.systemBlue,
+            joinURL: CalendarStore.joinLink(in: event)
+        )
+    }
+
+    /// A video-call link in the event's location, notes or URL.
+    private static func joinLink(in event: EKEvent) -> URL? {
+        let texts = [event.location, event.notes, event.url?.absoluteString].compactMap { $0 }
+        let pattern = #"https?://[^\s<>"']*(zoom\.us|zoomgov\.com|meet\.google\.com|teams\.microsoft\.com|teams\.live\.com|webex\.com|whereby\.com)[^\s<>"']*"#
+        guard let regex = try? NSRegularExpression(pattern: pattern, options: [.caseInsensitive]) else { return nil }
+        for text in texts {
+            let range = NSRange(text.startIndex..., in: text)
+            if let match = regex.firstMatch(in: text, range: range), let r = Range(match.range, in: text) {
+                let link = String(text[r]).trimmingCharacters(in: CharacterSet(charactersIn: ".,;)>"))
+                return URL(string: link)
+            }
         }
+        return nil
+    }
+
+    /// Everything on one calendar day, all-day events first.
+    func events(on day: Date) -> [CalendarEvent] {
+        guard access == .granted else { return [] }
+        let calendar = Calendar.current
+        let start = calendar.startOfDay(for: day)
+        guard let end = calendar.date(byAdding: .day, value: 1, to: start) else { return [] }
+        let predicate = store.predicateForEvents(withStart: start, end: end, calendars: nil)
+        return store.events(matching: predicate)
+            .sorted { a, b in
+                if a.isAllDay != b.isAllDay { return a.isAllDay }
+                return a.startDate < b.startDate
+            }
+            .map(makeEvent)
+    }
+
+    /// The days between `first` and `last` (inclusive) that have at least one event, as start-of-day dates.
+    func daysWithEvents(from first: Date, to last: Date) -> Set<Date> {
+        guard access == .granted else { return [] }
+        let calendar = Calendar.current
+        let start = calendar.startOfDay(for: first)
+        guard let end = calendar.date(byAdding: .day, value: 1, to: calendar.startOfDay(for: last)) else { return [] }
+        let predicate = store.predicateForEvents(withStart: start, end: end, calendars: nil)
+        var days = Set<Date>()
+        for event in store.events(matching: predicate) {
+            var day = max(calendar.startOfDay(for: event.startDate), start)
+            // An event that ends exactly at midnight does not belong to the next day.
+            let lastMoment = event.endDate > event.startDate ? event.endDate.addingTimeInterval(-1) : event.startDate
+            while day <= lastMoment && day < end {
+                days.insert(calendar.startOfDay(for: day))
+                guard let next = calendar.date(byAdding: .day, value: 1, to: day) else { break }
+                day = next
+            }
+        }
+        return days
     }
 }

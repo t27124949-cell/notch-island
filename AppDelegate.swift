@@ -16,6 +16,8 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         let menu = NSMenu()
         menu.addItem(withTitle: "Toggle Notch", action: #selector(toggleNotch), keyEquivalent: "")
             .target = self
+        menu.addItem(withTitle: "Check for Updates…", action: #selector(checkForUpdates), keyEquivalent: "")
+            .target = self
         menu.addItem(withTitle: "Debug Info…", action: #selector(showDebugInfo), keyEquivalent: "")
             .target = self
         menu.addItem(.separator())
@@ -41,6 +43,31 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         if alert.runModal() == .alertFirstButtonReturn {
             NSPasteboard.general.clearContents()
             NSPasteboard.general.setString(info, forType: .string)
+        }
+    }
+
+    @objc private func checkForUpdates() {
+        UpdateChecker.check { result in
+            NSApp.activate(ignoringOtherApps: true)
+            let alert = NSAlert()
+            switch result {
+            case .upToDate(let version):
+                alert.messageText = "You're up to date"
+                alert.informativeText = "Notch Island \(version) is the latest version."
+                alert.addButton(withTitle: "OK")
+                alert.runModal()
+            case .available(let version, let url):
+                alert.messageText = "Version \(version) is available"
+                alert.informativeText = "You have \(UpdateChecker.currentVersion). Download the new version, then replace Notch Island in your Applications folder."
+                alert.addButton(withTitle: "Download")
+                alert.addButton(withTitle: "Later")
+                if alert.runModal() == .alertFirstButtonReturn { NSWorkspace.shared.open(url) }
+            case .failed(let message):
+                alert.messageText = "Couldn't check for updates"
+                alert.informativeText = message
+                alert.addButton(withTitle: "OK")
+                alert.runModal()
+            }
         }
     }
 

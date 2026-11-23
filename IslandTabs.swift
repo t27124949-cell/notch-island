@@ -350,8 +350,38 @@ final class AppsTabView: TabContentView {
 // MARK: - Now Playing
 
 /// Progress bar you can drag to jump around the song.
+/// A slim, rounded progress bar (no knob until you drag it), like the Now Playing bar in Apple's apps.
+final class ThickSliderCell: NSSliderCell {
+    override func drawBar(inside rect: NSRect, flipped: Bool) {
+        let height: CGFloat = 6
+        let bar = NSRect(x: rect.minX, y: rect.midY - height / 2, width: rect.width, height: height)
+        UI.dim(0.2).setFill()
+        NSBezierPath(roundedRect: bar, xRadius: height / 2, yRadius: height / 2).fill()
+        let range = maxValue - minValue
+        let fraction = range > 0 ? CGFloat((doubleValue - minValue) / range) : 0
+        guard fraction > 0 else { return }
+        var filled = bar
+        filled.size.width = max(bar.width * min(fraction, 1), height)
+        UI.dim(0.72).setFill()
+        NSBezierPath(roundedRect: filled, xRadius: height / 2, yRadius: height / 2).fill()
+    }
+
+    override func drawKnob(_ knobRect: NSRect) {
+        guard (controlView as? SeekSlider)?.isDragging == true else { return }
+        let size: CGFloat = 12
+        let circle = NSRect(x: knobRect.midX - size / 2, y: knobRect.midY - size / 2, width: size, height: size)
+        NSColor.white.setFill()
+        NSBezierPath(ovalIn: circle).fill()
+    }
+}
+
 final class SeekSlider: NSSlider {
     var isDragging = false
+
+    override class var cellClass: AnyClass? {
+        get { ThickSliderCell.self }
+        set { super.cellClass = newValue }
+    }
     var onDrag: ((Double) -> Void)?
     var onSeek: ((Double) -> Void)?
 
@@ -387,9 +417,11 @@ final class NowPlayingTabView: TabContentView {
     private let store: NowPlayingStore
     private let settings: SettingsStore
     private let artwork = NSImageView()
-    private let titleLabel = UI.label("", size: 16, weight: .semibold)
-    private let artistLabel = UI.label("", size: 13, color: UI.dim())
-    private let albumLabel = UI.label("", size: 12, color: UI.dim(0.5))
+    private let titleLabel = UI.label("", size: 17, weight: .bold)
+    private let artistLabel = UI.label("", size: 14, color: UI.dim())
+    private let albumLabel = UI.label("", size: 11, color: UI.dim(0.5))
+    private let appBadge = NSImageView()
+    private static var iconCache: [MusicSource: NSImage] = [:]
     // Invisible tap targets laid over the artwork and labels.
     private let artworkLink = LinkOverlay()
     private let titleLink = LinkOverlay()
@@ -399,7 +431,7 @@ final class NowPlayingTabView: TabContentView {
     private let lyricsView = LyricsView(frame: .zero)
     private let seekSlider = SeekSlider(frame: .zero)
     private let elapsedLabel = UI.label("0:00", size: 10, color: UI.dim(0.6), alignment: .left)
-    private let remainingLabel = UI.label("-0:00", size: 10, color: UI.dim(0.6), alignment: .right)
+    private let remainingLabel = UI.label("0:00", size: 10, color: UI.dim(0.6), alignment: .right)
     private let previousButton: ClosureButton
     private let playButton: ClosureButton
     private let nextButton: ClosureButton
@@ -408,22 +440,29 @@ final class NowPlayingTabView: TabContentView {
     private var lyricsTimer: Timer?
 
     /// Width of the player column; the rest of the tab is lyrics.
-    private let playerColumn: CGFloat = 250
+    private let playerColumn: CGFloat = 330
 
     init(store: NowPlayingStore, settings: SettingsStore) {
         self.store = store
         self.settings = settings
-        previousButton = ClosureButton.icon(UI.symbol("backward.fill", size: 16)) { [weak store] in store?.previous() }
-        playButton = ClosureButton.icon(UI.symbol("play.fill", size: 22)) { [weak store] in store?.playPause() }
-        nextButton = ClosureButton.icon(UI.symbol("forward.fill", size: 16)) { [weak store] in store?.next() }
+        previousButton = ClosureButton.icon(UI.symbol("backward.fill", size: 18)) { [weak store] in store?.previous() }
+        playButton = ClosureButton.icon(UI.symbol("play.fill", size: 26)) { [weak store] in store?.playPause() }
+        nextButton = ClosureButton.icon(UI.symbol("forward.fill", size: 18)) { [weak store] in store?.next() }
         settingsButton = ClosureButton.pill("Open Settings") { UI.openSettings("Privacy_Automation") }
         super.init(frame: .zero)
 
         artwork.imageScaling = .scaleProportionallyUpOrDown
         artwork.wantsLayer = true
-        artwork.layer?.cornerRadius = 12
+        artwork.layer?.cornerRadius = 16
         artwork.layer?.masksToBounds = true
         artwork.layer?.backgroundColor = UI.dim(0.1).cgColor
+
+        appBadge.imageScaling = .scaleProportionallyUpOrDown
+        appBadge.wantsLayer = true
+        appBadge.layer?.shadowColor = NSColor.black.cgColor
+        appBadge.layer?.shadowOpacity = 0.5
+        appBadge.layer?.shadowRadius = 4
+        appBadge.layer?.shadowOffset = CGSize(width: 0, height: -2)
 
         artworkLink.toolTip = "Open in the player"
         titleLink.toolTip = "Open in the player"
@@ -442,7 +481,7 @@ final class NowPlayingTabView: TabContentView {
             self?.requestDismiss?()
         }
 
-        for view in [artwork, titleLabel, artistLabel, albumLabel, artworkLink, titleLink, artistLink, albumLink, messageLabel, lyricsView,
+        for view in [artwork, appBadge, titleLabel, artistLabel, albumLabel, artworkLink, titleLink, artistLink, albumLink, messageLabel, lyricsView,
                      seekSlider, elapsedLabel, remainingLabel,
                      previousButton, playButton, nextButton, settingsButton] as [NSView] {
             addSubview(view)
@@ -453,7 +492,7 @@ final class NowPlayingTabView: TabContentView {
         seekSlider.onDrag = { [weak self] value in
             guard let self else { return }
             self.elapsedLabel.stringValue = Self.format(value)
-            self.remainingLabel.stringValue = "-" + Self.format(max(0, self.seekSlider.maxValue - value))
+            self.remainingLabel.stringValue = Self.format(self.seekSlider.maxValue)
             if self.showingLyrics {
                 self.lyricsView.setPosition(value)
                 self.lyricsView.updatePlain(position: value, duration: self.seekSlider.maxValue)
@@ -489,33 +528,53 @@ final class NowPlayingTabView: TabContentView {
             seekSlider.maxValue = duration
             seekSlider.doubleValue = clamped
             elapsedLabel.stringValue = Self.format(clamped)
-            remainingLabel.stringValue = "-" + Self.format(duration - clamped)
+            remainingLabel.stringValue = Self.format(duration)
         }
     }
 
     override func layoutContents() {
         let columnW = showingLyrics ? playerColumn : bounds.width
-        let block: CGFloat = showingSeek ? 112 : 84
-        let top = (bounds.height - block) / 2
-        let seekY = top + 94
-        elapsedLabel.frame = NSRect(x: 0, y: seekY + 3, width: 34, height: 14)
-        remainingLabel.frame = NSRect(x: columnW - 40, y: seekY + 3, width: 40, height: 14)
-        seekSlider.frame = NSRect(x: 38, y: seekY, width: max(columnW - 38 - 44, 10), height: 20)
-        artwork.frame = NSRect(x: 0, y: top, width: 84, height: 84)
-        titleLabel.frame = NSRect(x: 100, y: top, width: columnW - 100, height: 22)
-        artistLabel.frame = NSRect(x: 100, y: top + 21, width: columnW - 100, height: 16)
-        albumLabel.frame = NSRect(x: 100, y: top + 37, width: columnW - 100, height: 14)
+        let art: CGFloat = 112
+        let infoX = art + 18
+        let infoW = max(columnW - infoX, 60)
+        let block: CGFloat = 122
+        let top = max((bounds.height - block) / 2, 0)
+
+        artwork.frame = NSRect(x: 0, y: top + 5, width: art, height: art)
+        let badge: CGFloat = 32
+        appBadge.frame = NSRect(x: art - badge + 8, y: top + 5 + art - badge + 8, width: badge, height: badge)
+
+        titleLabel.frame = NSRect(x: infoX, y: top, width: infoW, height: 22)
+        artistLabel.frame = NSRect(x: infoX, y: top + 23, width: infoW, height: 18)
+        albumLabel.frame = NSRect(x: infoX, y: top + 41, width: infoW, height: 14)
+
+        let seekY = top + 62
+        seekSlider.frame = NSRect(x: infoX, y: seekY, width: infoW, height: 14)
+        elapsedLabel.frame = NSRect(x: infoX, y: seekY + 15, width: 48, height: 12)
+        remainingLabel.frame = NSRect(x: infoX + infoW - 48, y: seekY + 15, width: 48, height: 12)
+
+        let controlsY = showingSeek ? top + 88 : top + 66
+        let centerX = infoX + infoW / 2
+        previousButton.frame = NSRect(x: centerX - 66, y: controlsY, width: 40, height: 34)
+        playButton.frame = NSRect(x: centerX - 20, y: controlsY - 1, width: 40, height: 36)
+        nextButton.frame = NSRect(x: centerX + 26, y: controlsY, width: 40, height: 34)
+
         artworkLink.frame = artwork.frame
         titleLink.frame = titleLabel.frame
         artistLink.frame = artistLabel.frame
         albumLink.frame = albumLabel.frame
-        messageLabel.frame = NSRect(x: 100, y: top + 26, width: columnW - 120, height: 44)
-        previousButton.frame = NSRect(x: 100, y: top + 52, width: 32, height: 32)
-        playButton.frame = NSRect(x: 142, y: top + 50, width: 36, height: 36)
-        nextButton.frame = NSRect(x: 188, y: top + 52, width: 32, height: 32)
-        settingsButton.frame.origin = NSPoint(x: 100, y: top + 60)
-        lyricsView.frame = NSRect(x: playerColumn + 12, y: 0, width: max(bounds.width - playerColumn - 12, 0), height: bounds.height)
+        messageLabel.frame = NSRect(x: infoX, y: top + 26, width: max(infoW - 10, 10), height: 44)
+        settingsButton.frame.origin = NSPoint(x: infoX, y: top + 82)
+        lyricsView.frame = NSRect(x: columnW + 16, y: 0, width: max(bounds.width - columnW - 16, 0), height: bounds.height)
         lyricsView.layoutAll()
+    }
+
+    private static func appIcon(for source: MusicSource) -> NSImage? {
+        if let cached = iconCache[source] { return cached }
+        guard let url = NSWorkspace.shared.urlForApplication(withBundleIdentifier: source.rawValue) else { return nil }
+        let icon = NSWorkspace.shared.icon(forFile: url.path)
+        iconCache[source] = icon
+        return icon
     }
 
     override func activate() {
@@ -566,13 +625,20 @@ final class NowPlayingTabView: TabContentView {
             artwork.contentTintColor = UI.dim(0.5)
         }
 
+        if let source = store.track?.source, let icon = Self.appIcon(for: source) {
+            appBadge.image = icon
+            appBadge.isHidden = false
+        } else {
+            appBadge.isHidden = true
+        }
+
         if let track = store.track {
             titleLabel.stringValue = track.title
             artistLabel.stringValue = track.artist
             artistLabel.isHidden = false
             albumLabel.stringValue = track.album
             albumLabel.isHidden = track.album.isEmpty
-            playButton.image = UI.symbol(track.isPlaying ? "pause.fill" : "play.fill", size: 22)
+            playButton.image = UI.symbol(track.isPlaying ? "pause.fill" : "play.fill", size: 26)
         } else if denied {
             titleLabel.stringValue = "Allow automation access"
             artistLabel.isHidden = true
@@ -585,143 +651,6 @@ final class NowPlayingTabView: TabContentView {
             messageLabel.stringValue = "Start playback in Spotify or Music."
         }
         layoutContents()
-    }
-}
-
-// MARK: - Calendar
-
-final class EventRowView: NSView {
-    private static let timeFormatter: DateFormatter = {
-        let f = DateFormatter()
-        f.dateStyle = .none
-        f.timeStyle = .short
-        return f
-    }()
-    private static let weekdayFormatter: DateFormatter = {
-        let f = DateFormatter()
-        f.dateFormat = "EEE"
-        return f
-    }()
-
-    init(event: CalendarEvent, width: CGFloat) {
-        super.init(frame: NSRect(x: 0, y: 0, width: width, height: 28))
-        wantsLayer = true
-        layer?.cornerRadius = 8
-        layer?.backgroundColor = UI.dim(0.08).cgColor
-
-        let bar = NSView(frame: NSRect(x: 10, y: 5, width: 4, height: 18))
-        bar.wantsLayer = true
-        bar.layer?.cornerRadius = 2
-        bar.layer?.backgroundColor = event.color.cgColor
-        addSubview(bar)
-
-        let time = UI.label(EventRowView.timeText(for: event), size: 12, color: UI.dim(), alignment: .right)
-        time.font = UI.monoDigits(size: 12, weight: .regular)
-        time.frame = NSRect(x: width - 10 - 130, y: 6, width: 130, height: 16)
-        addSubview(time)
-
-        let title = UI.label(event.title, size: 13, weight: .medium)
-        title.frame = NSRect(x: 24, y: 5, width: width - 24 - 150, height: 18)
-        addSubview(title)
-    }
-
-    required init?(coder: NSCoder) { fatalError("not used") }
-
-    static func timeText(for event: CalendarEvent) -> String {
-        if event.isAllDay { return "All day" }
-        let calendar = Calendar.current
-        if event.start <= Date() { return "Now" }
-        var prefix = ""
-        if !calendar.isDateInToday(event.start) {
-            prefix = calendar.isDateInTomorrow(event.start)
-                ? "Tomorrow "
-                : weekdayFormatter.string(from: event.start) + " "
-        }
-        return prefix + timeFormatter.string(from: event.start)
-    }
-}
-
-final class CalendarTabView: TabContentView {
-    private let store: CalendarStore
-    private let messageTitle = UI.label("", size: 15, weight: .semibold)
-    private let messageDetail = UI.label("", size: 12, color: UI.dim(), lines: 3)
-    private var messageButton: ClosureButton?
-    private let scroll = UI.scrollView(horizontal: false)
-    private let doc = FlippedView()
-    private var cancellable: AnyCancellable?
-
-    init(store: CalendarStore) {
-        self.store = store
-        super.init(frame: .zero)
-        scroll.documentView = doc
-        for view in [messageTitle, messageDetail, scroll] as [NSView] { addSubview(view) }
-        cancellable = store.objectWillChange
-            .receive(on: DispatchQueue.main)
-            .sink { [weak self] _ in self?.update() }
-        update()
-    }
-
-    required init?(coder: NSCoder) { fatalError("not used") }
-
-    override func layoutContents() {
-        messageTitle.frame = NSRect(x: 0, y: 24, width: bounds.width, height: 20)
-        messageDetail.frame = NSRect(x: 0, y: 48, width: bounds.width - 40, height: 48)
-        messageButton?.frame.origin = NSPoint(x: 0, y: 102)
-        scroll.frame = bounds
-        update()
-    }
-
-    override func activate() { store.refresh() }
-
-    private func setButton(_ title: String?, action: @escaping () -> Void = {}) {
-        messageButton?.removeFromSuperview()
-        messageButton = nil
-        guard let title else { return }
-        let button = ClosureButton.pill(title, handler: action)
-        button.frame.origin = NSPoint(x: 0, y: 102)
-        addSubview(button)
-        messageButton = button
-    }
-
-    private func showMessage(_ title: String, _ detail: String, button: String? = nil,
-                             action: @escaping () -> Void = {}) {
-        scroll.isHidden = true
-        messageTitle.isHidden = false
-        messageDetail.isHidden = false
-        messageTitle.stringValue = title
-        messageDetail.stringValue = detail
-        setButton(button, action: action)
-    }
-
-    private func update() {
-        switch store.access {
-        case .unknown:
-            showMessage("See your next events here",
-                        "Calendar access is needed to show what's coming up.",
-                        button: "Allow Calendar Access") { [weak self] in self?.store.requestAccess() }
-        case .denied:
-            showMessage("Calendar access is off",
-                        "Turn it on in System Settings → Privacy & Security → Calendars.",
-                        button: "Open Settings") { UI.openSettings("Privacy_Calendars") }
-        case .granted:
-            if store.events.isEmpty {
-                showMessage("Nothing coming up", "No events for the rest of today or tomorrow.")
-            } else {
-                setButton(nil)
-                messageTitle.isHidden = true
-                messageDetail.isHidden = true
-                scroll.isHidden = false
-                doc.subviews.forEach { $0.removeFromSuperview() }
-                let width = max(bounds.width, 1)
-                for (index, event) in store.events.enumerated() {
-                    let row = EventRowView(event: event, width: width)
-                    row.frame.origin = NSPoint(x: 0, y: CGFloat(index) * 32)
-                    doc.addSubview(row)
-                }
-                doc.frame = NSRect(x: 0, y: 0, width: width,
-                                   height: max(CGFloat(store.events.count) * 32, bounds.height))
-            }
-        }
     }
 }
 

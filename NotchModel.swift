@@ -84,7 +84,7 @@ final class NotchModel: ObservableObject {
         case .timer: return 170
         case .apps: return 180
         case .shelf: return 200
-        case .nowPlaying: return 210
+        case .nowPlaying: return 230
         default: return 230
         }
     }

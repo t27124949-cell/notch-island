@@ -29,6 +29,8 @@ let package = Package(
                 "SettingsTab.swift",
                 "Lyrics.swift",
                 "Activities.swift",
+                "CalendarMonthTab.swift",
+                "Updater.swift",
             ]
         )
     ]

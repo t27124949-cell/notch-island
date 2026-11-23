@@ -278,6 +278,7 @@ final class SettingsTabView: TabContentView, NSTextFieldDelegate {
         addFocusRow()
     }
 
+    private var pendingUpdateURL: URL?
     private let keyField = NSSecureTextField(frame: .zero)
     private let focusField = NSTextField(frame: .zero)
 
@@ -411,6 +412,28 @@ final class SettingsTabView: TabContentView, NSTextFieldDelegate {
             self.loginSwitch.isOn = self.settings.launchAtLogin
         }
         doc.addSubview(loginNote)
+
+        let updateButton = ClosureButton.pill("Check for updates", size: 11, fill: UI.dim(0.14), height: 22) {}
+        updateButton.handler = { [weak self, weak updateButton] in
+            guard let button = updateButton else { return }
+            if let url = self?.pendingUpdateURL {
+                NSWorkspace.shared.open(url)
+                return
+            }
+            button.setText("Checking…", size: 11)
+            UpdateChecker.check { [weak self] result in
+                switch result {
+                case .upToDate(let version):
+                    button.setText("Up to date (v\(version))", size: 11)
+                case .available(let version, let url):
+                    self?.pendingUpdateURL = url
+                    button.setText("Download v\(version)", size: 11)
+                case .failed:
+                    button.setText("Couldn't check. Try again", size: 11)
+                }
+            }
+        }
+        addRow(SettingRow(title: "Version \(UpdateChecker.currentVersion)", control: updateButton, controlWidth: 160, controlHeight: 22))
 
         let reset = ClosureButton.pill("Reset settings", size: 11, fill: UI.dim(0.14), height: 24) { [weak self] in
             self?.settings.resetToDefaults()
