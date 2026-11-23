@@ -128,9 +128,10 @@ final class CalendarStore: ObservableObject {
         let predicate = store.predicateForEvents(withStart: start, end: end, calendars: nil)
         var days = Set<Date>()
         for event in store.events(matching: predicate) {
-            var day = max(calendar.startOfDay(for: event.startDate), start)
+            guard let eventStart: Date = event.startDate, let eventEnd: Date = event.endDate else { continue }
+            var day = max(calendar.startOfDay(for: eventStart), start)
             // An event that ends exactly at midnight does not belong to the next day.
-            let lastMoment = event.endDate > event.startDate ? event.endDate.addingTimeInterval(-1) : event.startDate
+            let lastMoment: Date = eventEnd > eventStart ? eventEnd.addingTimeInterval(-1) : eventStart
             while day <= lastMoment && day < end {
                 days.insert(calendar.startOfDay(for: day))
                 guard let next = calendar.date(byAdding: .day, value: 1, to: day) else { break }
