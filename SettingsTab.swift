@@ -236,6 +236,16 @@ final class SettingsTabView: TabContentView, NSTextFieldDelegate {
             glassRow.valueLabel.stringValue = "\(Int((self.settings.glassAmount * 100).rounded()))%"
         }
 
+        // Swipes (two fingers on the trackpad)
+        addSwipeRow("Swipe left", get: { [weak self] in self?.settings.swipeLeft ?? .nextTab },
+                    set: { [weak self] in self?.settings.swipeLeft = $0 })
+        addSwipeRow("Swipe right", get: { [weak self] in self?.settings.swipeRight ?? .previousTab },
+                    set: { [weak self] in self?.settings.swipeRight = $0 })
+        addSwipeRow("Swipe up", get: { [weak self] in self?.settings.swipeUp ?? .close },
+                    set: { [weak self] in self?.settings.swipeUp = $0 })
+        addSwipeRow("Swipe down", get: { [weak self] in self?.settings.swipeDown ?? .none },
+                    set: { [weak self] in self?.settings.swipeDown = $0 })
+
         // Open on which tab
         startTabButton.handler = { [weak self] in self?.showStartTabMenu() }
         addRow(SettingRow(title: "Open on", control: startTabButton, controlWidth: 130))
@@ -498,6 +508,28 @@ final class SettingsTabView: TabContentView, NSTextFieldDelegate {
         }
     }
 
+    private func addSwipeRow(_ title: String, get: @escaping () -> SwipeAction, set: @escaping (SwipeAction) -> Void) {
+        let button = ClosureButton(frame: .zero)
+        button.handler = { [weak self, weak button] in
+            guard let self, let button else { return }
+            let handler = MenuHandler()
+            self.menuHandler = handler
+            let menu = NSMenu()
+            for action in SwipeAction.allCases {
+                let item = handler.item(action.title) { set(action) }
+                item.state = action == get() ? .on : .off
+                menu.addItem(item)
+            }
+            let show: () -> Void = { _ = menu.popUp(positioning: nil, at: NSPoint(x: 0, y: button.bounds.height + 2), in: button) }
+            if let hold = self.holdOpen { hold(show) } else { show() }
+        }
+        addRow(SettingRow(title: title, control: button, controlWidth: 140))
+        refreshers.append {
+            button.setText(get().title + " ▾", size: 11, color: .white)
+            button.setFill(UI.dim(0.14), radius: 11)
+        }
+    }
+
     private func showTimerSoundMenu() {
         let handler = MenuHandler()
         menuHandler = handler
@@ -559,10 +591,10 @@ final class SettingsTabView: TabContentView, NSTextFieldDelegate {
         y += CGFloat((featureCells.count + Int(columns) - 1) / Int(columns)) * 38 + 8
 
         // Rows are in creation order: behavior (9), clipboard (3), general (1).
-        let behaviorRows = Array(rows.prefix(13))
-        let activityRows = Array(rows.dropFirst(13).prefix(8))
-        let clipboardRows = Array(rows.dropFirst(21).prefix(3))
-        let generalRows = Array(rows.dropFirst(24))
+        let behaviorRows = Array(rows.prefix(17))
+        let activityRows = Array(rows.dropFirst(17).prefix(8))
+        let clipboardRows = Array(rows.dropFirst(25).prefix(3))
+        let generalRows = Array(rows.dropFirst(28))
 
         func layout(_ group: [SettingRow]) {
             for row in group {

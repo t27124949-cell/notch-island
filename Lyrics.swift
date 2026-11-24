@@ -282,13 +282,15 @@ final class LyricsView: NSView {
     private func refreshBadge() {
         var isPlain = false
         if case .plain = state { isPlain = true }
-        badge.isHidden = !(isPlain && autoScrollPlain)
+        badge.isHidden = suppressBadge || !(isPlain && autoScrollPlain)
     }
 
     /// Estimated scrolling for lyrics without timing. Intros and outros are skipped over a little, but
     /// long breaks and repeated choruses will drift, which is why this is labelled as an estimate.
     /// Timing nudge in seconds from the settings slider.
     var offset: Double = 0
+    /// Hide the "Not synced" note (the tab shows its own tap-to-sync button in its place).
+    var suppressBadge = false
 
     func updatePlain(position: Double, duration: Double) {
         guard case .plain = state, autoScrollPlain, duration > 1 else { return }

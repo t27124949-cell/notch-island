@@ -2,6 +2,23 @@ import AppKit
 import Combine
 import ServiceManagement
 
+/// What a swipe on the open island can do. Each direction is set separately in Settings.
+enum SwipeAction: String, CaseIterable {
+    case none, close, togglePin, nextTab, previousTab, nextSong, previousSong
+
+    var title: String {
+        switch self {
+        case .none: return "Nothing"
+        case .close: return "Close the island"
+        case .togglePin: return "Pin / unpin"
+        case .nextTab: return "Next tab"
+        case .previousTab: return "Previous tab"
+        case .nextSong: return "Next song"
+        case .previousSong: return "Previous song"
+        }
+    }
+}
+
 /// User preferences, saved in UserDefaults. Every tab can be switched off except Settings itself.
 final class SettingsStore: ObservableObject {
     static let defaultOpenDelay = 0.08
@@ -20,6 +37,10 @@ final class SettingsStore: ObservableObject {
     @Published var startTab: String { didSet { save() } }          // "last" or a NotchTab raw value
     @Published var use24Hour: Bool { didSet { save() } }
     @Published var showLyrics: Bool { didSet { save() } }
+    @Published var swipeLeft: SwipeAction { didSet { save() } }     // two-finger swipe on the open island
+    @Published var swipeRight: SwipeAction { didSet { save() } }
+    @Published var swipeUp: SwipeAction { didSet { save() } }
+    @Published var swipeDown: SwipeAction { didSet { save() } }
     @Published var glassAmount: Double { didSet { save() } }       // 0 = solid black, 1 = frosted glass
     @Published var lyricsOffset: Double { didSet { save() } }       // seconds; + shows each line sooner
     @Published var autoScrollLyrics: Bool { didSet { save() } }   // estimated scrolling for lyrics that have no timing
@@ -51,6 +72,10 @@ final class SettingsStore: ObservableObject {
         autoScrollLyrics = d.object(forKey: "autoScrollLyrics") as? Bool ?? true
         lyricsOffset = d.object(forKey: "lyricsOffset") as? Double ?? 0
         glassAmount = d.object(forKey: "glassAmount") as? Double ?? 0
+        swipeLeft = SwipeAction(rawValue: d.string(forKey: "swipeLeft") ?? "") ?? .nextTab
+        swipeRight = SwipeAction(rawValue: d.string(forKey: "swipeRight") ?? "") ?? .previousTab
+        swipeUp = SwipeAction(rawValue: d.string(forKey: "swipeUp") ?? "") ?? .close
+        swipeDown = SwipeAction(rawValue: d.string(forKey: "swipeDown") ?? "") ?? .none
         activitiesEnabled = d.object(forKey: "activitiesEnabled") as? Bool ?? true
         activityMusic = d.object(forKey: "activityMusic") as? Bool ?? true
         activityBattery = d.object(forKey: "activityBattery") as? Bool ?? true
@@ -80,6 +105,10 @@ final class SettingsStore: ObservableObject {
         d.set(autoScrollLyrics, forKey: "autoScrollLyrics")
         d.set(lyricsOffset, forKey: "lyricsOffset")
         d.set(glassAmount, forKey: "glassAmount")
+        d.set(swipeLeft.rawValue, forKey: "swipeLeft")
+        d.set(swipeRight.rawValue, forKey: "swipeRight")
+        d.set(swipeUp.rawValue, forKey: "swipeUp")
+        d.set(swipeDown.rawValue, forKey: "swipeDown")
         d.set(activitiesEnabled, forKey: "activitiesEnabled")
         d.set(activityMusic, forKey: "activityMusic")
         d.set(activityBattery, forKey: "activityBattery")
@@ -153,6 +182,10 @@ final class SettingsStore: ObservableObject {
         autoScrollLyrics = true
         lyricsOffset = 0
         glassAmount = 0
+        swipeLeft = .nextTab
+        swipeRight = .previousTab
+        swipeUp = .close
+        swipeDown = .none
         clipboardMaxItems = SettingsStore.defaultClipboardItems
         clipboardPersist = true
         clipboardRetentionDays = SettingsStore.defaultClipboardDays

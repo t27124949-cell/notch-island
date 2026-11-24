@@ -128,7 +128,7 @@ final class IslandView: NSView {
             .apps: AppsTabView(store: model.apps),
             .launcher: LauncherTabView(store: model.launcher),
             .agents: AgentsTabView(store: model.agents),
-            .nowPlaying: NowPlayingTabView(store: model.nowPlaying, settings: model.settings),
+            .nowPlaying: NowPlayingTabView(store: model.nowPlaying, settings: model.settings, controls: model.controls),
             .calendar: CalendarTabView(store: model.calendar),
             .weather: WeatherTabView(store: model.weather),
             .shelf: ShelfTabView(model: model),
@@ -444,6 +444,58 @@ final class IslandView: NSView {
             guard let self, !self.isShownPeek else { return }
             self.peekView.isHidden = true
         })
+    }
+
+    // MARK: Swipes
+
+    private var swipeTotals = CGPoint.zero
+    private var swipeDone = false
+
+    /// Two-finger swipes on the open island run the actions chosen in Settings. Lists that scroll keep their own
+    /// scrolling; a swipe only reaches here from the parts that don't scroll in that direction.
+    override func scrollWheel(with event: NSEvent) {
+        guard isShownOpen, event.hasPreciseScrollingDeltas else {
+            super.scrollWheel(with: event)
+            return
+        }
+        if !event.momentumPhase.isEmpty { return }
+        if event.phase.contains(.began) || event.phase.contains(.mayBegin) {
+            swipeTotals = .zero
+            swipeDone = false
+        }
+        // Measured as the direction the fingers moved, whatever the "natural scrolling" setting is.
+        let natural = event.isDirectionInvertedFromDevice
+        swipeTotals.x += natural ? -event.scrollingDeltaX : event.scrollingDeltaX   // + = fingers moved left
+        swipeTotals.y += natural ? -event.scrollingDeltaY : event.scrollingDeltaY   // + = fingers moved up
+        let ax = abs(swipeTotals.x), ay = abs(swipeTotals.y)
+        if !swipeDone {
+            if ax > 70 && ax > ay * 1.6 {
+                swipeDone = true
+                perform(swipeTotals.x > 0 ? model.settings.swipeLeft : model.settings.swipeRight)
+            } else if ay > 70 && ay > ax * 1.6 {
+                swipeDone = true
+                perform(swipeTotals.y > 0 ? model.settings.swipeUp : model.settings.swipeDown)
+            }
+        }
+        if event.phase.contains(.ended) || event.phase.contains(.cancelled) {
+            swipeTotals = .zero
+            swipeDone = false
+        }
+    }
+
+    private func perform(_ action: SwipeAction) {
+        switch action {
+        case .none: break
+        case .close: model.dismiss()
+        case .togglePin: model.togglePin()
+        case .nextTab, .previousTab:
+            let tabs = NotchTab.allCases.filter { model.settings.isEnabled($0) }
+            guard let index = tabs.firstIndex(of: model.tab), tabs.count > 1 else { return }
+            let step = action == .nextTab ? 1 : tabs.count - 1
+            model.tab = tabs[(index + step) % tabs.count]
+        case .nextSong: model.nowPlaying.next()
+        case .previousSong: model.nowPlaying.previous()
+        }
     }
 
     // MARK: Open / close

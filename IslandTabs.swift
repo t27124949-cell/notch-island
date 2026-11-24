@@ -434,6 +434,15 @@ final class NowPlayingTabView: TabContentView {
     private let albumLink = LinkOverlay()
     private let messageLabel = UI.label("", size: 11, color: UI.dim(), lines: 3)
     private let lyricsView = LyricsView(frame: .zero)
+    private let controls: ControlsStore
+    private let volumeSlider = SeekSlider(frame: .zero)
+    private let volumeLow = NSImageView()
+    private let volumeHigh = NSImageView()
+    private var lastVolumeSend = Date.distantPast
+    private let syncView = LyricsSyncView(frame: .zero)
+    private let syncPill = ClosureButton(frame: .zero)
+    private var syncing = false
+    private var syncTitle = ""
     private let seekSlider = SeekSlider(frame: .zero)
     private let elapsedLabel = UI.label("0:00", size: 10, color: UI.dim(0.6), alignment: .left)
     private let remainingLabel = UI.label("0:00", size: 10, color: UI.dim(0.6), alignment: .right)
@@ -447,9 +456,10 @@ final class NowPlayingTabView: TabContentView {
     /// Width of the player column; the rest of the tab is lyrics.
     private let playerColumn: CGFloat = 316
 
-    init(store: NowPlayingStore, settings: SettingsStore) {
+    init(store: NowPlayingStore, settings: SettingsStore, controls: ControlsStore) {
         self.store = store
         self.settings = settings
+        self.controls = controls
         previousButton = ClosureButton.icon(UI.symbol("backward.fill", size: 18)) { [weak store] in store?.previous() }
         playButton = ClosureButton.icon(UI.symbol("play.fill", size: 26)) { [weak store] in store?.playPause() }
         nextButton = ClosureButton.icon(UI.symbol("forward.fill", size: 18)) { [weak store] in store?.next() }
@@ -487,7 +497,7 @@ final class NowPlayingTabView: TabContentView {
         }
 
         for view in [artwork, appBadge, titleLabel, artistLabel, albumLabel, artworkLink, titleLink, artistLink, albumLink, messageLabel, lyricsView,
-                     seekSlider, elapsedLabel, remainingLabel,
+                     seekSlider, elapsedLabel, remainingLabel, volumeSlider, volumeLow, volumeHigh, syncView, syncPill,
                      previousButton, playButton, nextButton, settingsButton] as [NSView] {
             addSubview(view)
         }
@@ -504,6 +514,42 @@ final class NowPlayingTabView: TabContentView {
             }
         }
         seekSlider.onSeek = { [weak store] value in store?.seek(to: value) }
+
+        // Volume
+        volumeLow.image = UI.symbol("speaker.fill", size: 9, weight: .regular)
+        volumeHigh.image = UI.symbol("speaker.wave.3.fill", size: 9, weight: .regular)
+        volumeLow.contentTintColor = UI.dim(0.55)
+        volumeHigh.contentTintColor = UI.dim(0.55)
+        volumeSlider.minValue = 0
+        volumeSlider.maxValue = 100
+        volumeSlider.onDrag = { [weak self] value in
+            guard let self, Date().timeIntervalSince(self.lastVolumeSend) > 0.12 else { return }
+            self.lastVolumeSend = Date()
+            self.controls.setVolume(value)
+        }
+        volumeSlider.onSeek = { [weak self] value in self?.controls.setVolume(value) }
+        controls.objectWillChange
+            .receive(on: DispatchQueue.main)
+            .sink { [weak self] _ in
+                guard let self, !self.volumeSlider.isDragging else { return }
+                self.volumeSlider.doubleValue = self.controls.volume
+                self.update()
+            }
+            .store(in: &cancellables)
+
+        // Tap to sync
+        syncView.isHidden = true
+        syncView.position = { [weak store] in store?.currentPosition() ?? 0 }
+        syncView.onFinish = { [weak self] lines in
+            self?.syncing = false
+            self?.store.saveUserSynced(lines)
+            self?.update()
+        }
+        syncView.onCancel = { [weak self] in
+            self?.syncing = false
+            self?.update()
+        }
+        syncPill.handler = { [weak self] in self?.startSync() }
         store.objectWillChange
             .receive(on: DispatchQueue.main)
             .sink { [weak self] _ in self?.update() }
@@ -542,8 +588,8 @@ final class NowPlayingTabView: TabContentView {
         let art: CGFloat = 112
         let infoX = art + 18
         let infoW = max(columnW - infoX, 60)
-        let block: CGFloat = 122
-        let top = max((bounds.height - block) / 2, 0)
+        let block: CGFloat = showingSeek ? 144 : 122
+        let top = max((bounds.height - block) / 2 + 4, 0)
 
         artwork.frame = NSRect(x: 0, y: top + 5, width: art, height: art)
         let badge: CGFloat = 32
@@ -567,11 +613,40 @@ final class NowPlayingTabView: TabContentView {
         artworkLink.frame = artwork.frame
         titleLink.frame = titleLabel.frame
         artistLink.frame = artistLabel.frame
+        let volumeY = controlsY + 38
+        volumeLow.frame = NSRect(x: infoX, y: volumeY + 1, width: 14, height: 12)
+        volumeHigh.frame = NSRect(x: infoX + infoW - 16, y: volumeY + 1, width: 16, height: 12)
+        volumeSlider.frame = NSRect(x: infoX + 20, y: volumeY, width: max(infoW - 40, 20), height: 14)
         albumLink.frame = albumLabel.frame
         messageLabel.frame = NSRect(x: infoX, y: top + 26, width: max(infoW - 10, 10), height: 44)
         settingsButton.frame.origin = NSPoint(x: infoX, y: top + 82)
         lyricsView.frame = NSRect(x: columnW + 16, y: 0, width: max(bounds.width - columnW - 16, 0), height: bounds.height)
         lyricsView.layoutAll()
+        syncView.frame = lyricsView.frame
+        syncView.layoutAll()
+        syncPill.frame = NSRect(x: lyricsView.frame.minX, y: bounds.height - 14, width: lyricsView.frame.width, height: 14)
+    }
+
+    // MARK: Tap to sync
+
+    private func startSync() {
+        let texts: [String]
+        switch store.lyrics {
+        case .plain(let text):
+            texts = text.components(separatedBy: .newlines).map { $0.trimmingCharacters(in: .whitespaces) }.filter { !$0.isEmpty }
+        case .synced(let lines):
+            texts = lines.map { $0.text.trimmingCharacters(in: .whitespaces) }.filter { !$0.isEmpty }
+        default:
+            return
+        }
+        guard texts.count >= 2 else { return }
+        syncing = true
+        syncTitle = store.track?.title ?? ""
+        store.seek(to: 0)   // start from the top of the song
+        syncView.begin(texts: texts)
+        requestPin?()       // stay open while syncing
+        update()
+        layoutContents()
     }
 
     private static func appIcon(for source: MusicSource) -> NSImage? {
@@ -584,6 +659,7 @@ final class NowPlayingTabView: TabContentView {
 
     override func activate() {
         store.startPolling()
+        controls.refresh()
         update()
         let timer = Timer(timeInterval: 0.25, repeats: true) { [weak self] _ in
             guard let self else { return }
@@ -612,7 +688,26 @@ final class NowPlayingTabView: TabContentView {
         messageLabel.isHidden = hasTrack
         for button in [previousButton, playButton, nextButton] { button.isHidden = !hasTrack }
         settingsButton.isHidden = !denied
-        lyricsView.isHidden = !showingLyrics
+        if syncing, store.track?.title != syncTitle { syncing = false }   // the song changed
+        lyricsView.isHidden = !showingLyrics || syncing
+        syncView.isHidden = !syncing
+        var pillText: String?
+        if showingLyrics && !syncing {
+            switch store.lyrics {
+            case .plain: pillText = "Not synced · tap to sync ›"
+            case .synced where store.hasUserSync: pillText = "Your timing · redo ›"
+            default: break
+            }
+        }
+        syncPill.isHidden = pillText == nil
+        if let pillText {
+            syncPill.setText(pillText, size: 10, weight: .medium, color: UI.dim(0.55))
+            syncPill.alignment = .right
+        }
+        lyricsView.suppressBadge = pillText != nil
+        let showVolume = hasTrack && controls.volumeAvailable
+        for view in [volumeSlider, volumeLow, volumeHigh] as [NSView] { view.isHidden = !showVolume }
+        if !volumeSlider.isDragging { volumeSlider.doubleValue = controls.volume }
         for view in [seekSlider, elapsedLabel, remainingLabel] as [NSView] { view.isHidden = !(hasTrack && showingSeek) }
         updateSeek(store.currentPosition())
         lyricsView.autoScrollPlain = settings.autoScrollLyrics

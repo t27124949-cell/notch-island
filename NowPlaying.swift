@@ -249,6 +249,19 @@ final class NowPlayingStore: ObservableObject {
 
     // MARK: Lyrics
 
+    /// Whether the current song has lyrics the person timed with tap-to-sync.
+    var hasUserSync: Bool {
+        guard let key = lyricsKey else { return false }
+        return SyncedLyricsStorage.exists(key)
+    }
+
+    func saveUserSynced(_ lines: [LyricLine]) {
+        guard let key = lyricsKey else { return }
+        SyncedLyricsStorage.save(lines, key: key)
+        lyricsCache[key] = .synced(lines)
+        lyrics = .synced(lines)
+    }
+
     private func updateLyrics(for track: Track?) {
         guard lyricsEnabled else {
             lyricsKey = nil
@@ -266,6 +279,12 @@ final class NowPlayingStore: ObservableObject {
 
         if let cached = lyricsCache[key] {
             lyrics = cached
+            return
+        }
+        // Lyrics the person timed themselves win over anything online.
+        if let saved = SyncedLyricsStorage.load(key) {
+            lyricsCache[key] = .synced(saved)
+            lyrics = .synced(saved)
             return
         }
         // Apple Music: lyrics stored in the song file itself (library songs) are read locally first.

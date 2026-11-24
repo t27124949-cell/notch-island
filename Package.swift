@@ -34,6 +34,7 @@ let package = Package(
                 "AgentBridge.swift",
                 "AgentsTab.swift",
                 "Bluetooth.swift",
+                "LyricsSync.swift",
             ]
         )
     ]
