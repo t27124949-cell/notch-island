@@ -2,7 +2,7 @@
 
 Turn the MacBook notch (or a virtual pill on Macs without one) into an interactive island: hover to expand it into a tabbed panel with quick controls, your open apps, a launcher, music, calendar, weather, clipboard history, notes, system stats and more. Every feature can be switched off in Settings.
 
-![Notch Island screenshot](docs/screenshot.png)
+![Notch Island screenshot](docs/screenshot1.png)
 <!-- Add a screenshot or GIF at docs/screenshot.png -->
 
 ## Download (easiest)
