@@ -243,7 +243,7 @@ final class SettingsTabView: TabContentView, NSTextFieldDelegate {
                     set: { [weak self] in self?.settings.swipeRight = $0 })
         addSwipeRow("Swipe up", get: { [weak self] in self?.settings.swipeUp ?? .close },
                     set: { [weak self] in self?.settings.swipeUp = $0 })
-        addSwipeRow("Swipe down", get: { [weak self] in self?.settings.swipeDown ?? .none },
+        addSwipeRow("Swipe down", get: { [weak self] in self?.settings.swipeDown ?? .off },
                     set: { [weak self] in self?.settings.swipeDown = $0 })
 
         // Open on which tab

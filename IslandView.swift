@@ -485,7 +485,7 @@ final class IslandView: NSView {
 
     private func perform(_ action: SwipeAction) {
         switch action {
-        case .none: break
+        case .off: break
         case .close: model.dismiss()
         case .togglePin: model.togglePin()
         case .nextTab, .previousTab:

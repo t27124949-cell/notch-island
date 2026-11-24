@@ -4,11 +4,11 @@ import ServiceManagement
 
 /// What a swipe on the open island can do. Each direction is set separately in Settings.
 enum SwipeAction: String, CaseIterable {
-    case none, close, togglePin, nextTab, previousTab, nextSong, previousSong
+    case off, close, togglePin, nextTab, previousTab, nextSong, previousSong
 
     var title: String {
         switch self {
-        case .none: return "Nothing"
+        case .off: return "Nothing"
         case .close: return "Close the island"
         case .togglePin: return "Pin / unpin"
         case .nextTab: return "Next tab"
@@ -75,7 +75,7 @@ final class SettingsStore: ObservableObject {
         swipeLeft = SwipeAction(rawValue: d.string(forKey: "swipeLeft") ?? "") ?? .nextTab
         swipeRight = SwipeAction(rawValue: d.string(forKey: "swipeRight") ?? "") ?? .previousTab
         swipeUp = SwipeAction(rawValue: d.string(forKey: "swipeUp") ?? "") ?? .close
-        swipeDown = SwipeAction(rawValue: d.string(forKey: "swipeDown") ?? "") ?? .none
+        swipeDown = SwipeAction(rawValue: d.string(forKey: "swipeDown") ?? "") ?? .off
         activitiesEnabled = d.object(forKey: "activitiesEnabled") as? Bool ?? true
         activityMusic = d.object(forKey: "activityMusic") as? Bool ?? true
         activityBattery = d.object(forKey: "activityBattery") as? Bool ?? true
@@ -185,7 +185,7 @@ final class SettingsStore: ObservableObject {
         swipeLeft = .nextTab
         swipeRight = .previousTab
         swipeUp = .close
-        swipeDown = .none
+        swipeDown = .off
         clipboardMaxItems = SettingsStore.defaultClipboardItems
         clipboardPersist = true
         clipboardRetentionDays = SettingsStore.defaultClipboardDays
