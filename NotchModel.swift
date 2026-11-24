@@ -76,6 +76,7 @@ final class NotchModel: ObservableObject {
     let stats = StatsStore()
     let launcher = LauncherStore()
     let agents = AgentStore()
+    let bluetooth = BluetoothWatcher()
 
     /// Total size of the expanded island (height includes the notch area).
     let openSize = CGSize(width: 580, height: 230)
@@ -109,6 +110,11 @@ final class NotchModel: ObservableObject {
                                      title: event.agent, subtitle: event.title, duration: 4)
         }
         agents.startIfConnected()
+        // Started a little late so the first-run welcome can explain the Bluetooth prompt first.
+        DispatchQueue.main.asyncAfter(deadline: .now() + 6) { [weak self] in
+            guard let self, self.settings.activityBluetooth else { return }
+            self.bluetooth.start(model: self)
+        }
     }
 
     /// Push settings into the parts of the app that run in the background.

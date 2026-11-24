@@ -372,6 +372,9 @@ final class SettingsTabView: TabContentView, NSTextFieldDelegate {
         addSwitchRow("   Timer finished",
                      get: { [weak self] in self?.settings.activityTimer ?? true },
                      set: { [weak self] in self?.settings.activityTimer = $0 })
+        addSwitchRow("Headphones connected (AirPods and other Bluetooth)",
+                     get: { [weak self] in self?.settings.activityBluetooth ?? true },
+                     set: { [weak self] in self?.settings.activityBluetooth = $0 })
         addSwitchRow("Music animation in the notch while playing",
                      get: { [weak self] in self?.settings.ambientMusic ?? true },
                      set: { [weak self] in self?.settings.ambientMusic = $0 })
@@ -557,9 +560,9 @@ final class SettingsTabView: TabContentView, NSTextFieldDelegate {
 
         // Rows are in creation order: behavior (9), clipboard (3), general (1).
         let behaviorRows = Array(rows.prefix(13))
-        let activityRows = Array(rows.dropFirst(13).prefix(7))
-        let clipboardRows = Array(rows.dropFirst(20).prefix(3))
-        let generalRows = Array(rows.dropFirst(23))
+        let activityRows = Array(rows.dropFirst(13).prefix(8))
+        let clipboardRows = Array(rows.dropFirst(21).prefix(3))
+        let generalRows = Array(rows.dropFirst(24))
 
         func layout(_ group: [SettingRow]) {
             for row in group {

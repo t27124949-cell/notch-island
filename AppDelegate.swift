@@ -62,9 +62,10 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         alert.informativeText = """
         Move your pointer to the notch to open the island. Click the pin to keep it open.
 
-        macOS may ask for two permissions, and both are optional:
+        macOS may ask for a few permissions, and all are optional:
         • Calendar: only for the Calendar tab.
         • Control of Music or Spotify: only for Now Playing (controls and lyrics).
+        • Bluetooth: only so the notch can tell you when AirPods or headphones connect.
         Weather uses just the city you type, so it needs no location permission.
 
         You can switch any tab off in Settings. To start with your Mac, turn on "Open at login" in Settings (it works once the app is in your Applications folder).

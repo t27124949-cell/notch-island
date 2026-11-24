@@ -35,6 +35,8 @@ cat > "$APP/Contents/Info.plist" <<'PLIST'
     <key>NSHighResolutionCapable</key><true/>
     <key>NSAppleEventsUsageDescription</key>
     <string>Notch Island shows what is playing in Spotify and Music, lets you control playback, and toggles dark mode and volume from Quick Controls.</string>
+    <key>NSBluetoothAlwaysUsageDescription</key>
+    <string>Notch Island tells you when headphones such as AirPods connect, and shows their battery.</string>
     <key>NSCalendarsUsageDescription</key>
     <string>Notch Island shows your upcoming calendar events.</string>
     <key>NSCalendarsFullAccessUsageDescription</key>

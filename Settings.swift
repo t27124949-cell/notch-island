@@ -27,6 +27,7 @@ final class SettingsStore: ObservableObject {
     @Published var activityMusic: Bool { didSet { save() } }
     @Published var activityBattery: Bool { didSet { save() } }
     @Published var activityTimer: Bool { didSet { save() } }
+    @Published var activityBluetooth: Bool { didSet { save() } }   // headphones connected / disconnected
     @Published var timerSound: String { didSet { save() } }        // a macOS sound name, or "Off"
     @Published var ambientMusic: Bool { didSet { save() } }        // equalizer in the closed notch while playing
     @Published var ambientBattery: Bool { didSet { save() } }      // battery level in the closed notch when idle
@@ -54,6 +55,7 @@ final class SettingsStore: ObservableObject {
         activityMusic = d.object(forKey: "activityMusic") as? Bool ?? true
         activityBattery = d.object(forKey: "activityBattery") as? Bool ?? true
         activityTimer = d.object(forKey: "activityTimer") as? Bool ?? true
+        activityBluetooth = d.object(forKey: "activityBluetooth") as? Bool ?? true
         timerSound = d.string(forKey: "timerSound") ?? "Glass"
         ambientMusic = d.object(forKey: "ambientMusic") as? Bool ?? true
         ambientBattery = d.object(forKey: "ambientBattery") as? Bool ?? true
@@ -82,6 +84,7 @@ final class SettingsStore: ObservableObject {
         d.set(activityMusic, forKey: "activityMusic")
         d.set(activityBattery, forKey: "activityBattery")
         d.set(activityTimer, forKey: "activityTimer")
+        d.set(activityBluetooth, forKey: "activityBluetooth")
         d.set(timerSound, forKey: "timerSound")
         d.set(ambientMusic, forKey: "ambientMusic")
         d.set(ambientBattery, forKey: "ambientBattery")
@@ -141,6 +144,7 @@ final class SettingsStore: ObservableObject {
         activityMusic = true
         activityBattery = true
         activityTimer = true
+        activityBluetooth = true
         timerSound = "Glass"
         ambientMusic = true
         ambientBattery = true

@@ -33,6 +33,7 @@ let package = Package(
                 "Updater.swift",
                 "AgentBridge.swift",
                 "AgentsTab.swift",
+                "Bluetooth.swift",
             ]
         )
     ]
