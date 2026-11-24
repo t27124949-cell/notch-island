@@ -40,7 +40,8 @@ final class AgentStore: ObservableObject {
     var onEvent: ((AgentEvent) -> Void)?
 
     /// Whether the Agents tab should appear in the tab bar.
-    var isVisible: Bool { connected || !pending.isEmpty }
+    /// Always shown, because the Connect button lives in the tab. It can be switched off in Settings → Features.
+    var isVisible: Bool { true }
 
     private var listener: NWListener?
     private var starting = false
