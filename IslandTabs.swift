@@ -440,7 +440,7 @@ final class NowPlayingTabView: TabContentView {
     private var lyricsTimer: Timer?
 
     /// Width of the player column; the rest of the tab is lyrics.
-    private let playerColumn: CGFloat = 330
+    private let playerColumn: CGFloat = 316
 
     init(store: NowPlayingStore, settings: SettingsStore) {
         self.store = store

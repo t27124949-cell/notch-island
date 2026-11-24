@@ -75,7 +75,7 @@ final class NotchModel: ObservableObject {
     let launcher = LauncherStore()
 
     /// Total size of the expanded island (height includes the notch area).
-    let openSize = CGSize(width: 680, height: 230)
+    let openSize = CGSize(width: 580, height: 230)
 
     /// How tall the open island is for each tab (the notch row is included). Never above `openSize.height`.
     static func openHeight(for tab: NotchTab) -> CGFloat {

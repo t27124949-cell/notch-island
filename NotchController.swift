@@ -100,10 +100,7 @@ final class NotchController {
             defer: false
         )
         panel.isFloatingPanel = true
-        // Above the menu bar AND the menu-bar icons of other apps (they draw above `.mainMenu + 3` on some macOS
-        // versions, which let them highlight and take clicks through the open island). One step below pop-up
-        // menus so our own menus still appear on top of the island.
-        panel.level = .popUpMenu - 1
+        panel.level = .mainMenu + 3
         panel.backgroundColor = .clear
         panel.isOpaque = false
         panel.hasShadow = false

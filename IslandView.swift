@@ -144,10 +144,10 @@ final class IslandView: NSView {
         content.frame = NSRect(origin: .zero, size: size)
         shapeView.frame = NSRect(origin: .zero, size: size)
 
-        let buttonW: CGFloat = 26
+        let buttonW: CGFloat = 24
         let buttonH: CGFloat = 24
         let gap: CGFloat = 2
-        let pad: CGFloat = 24
+        let pad: CGFloat = 14
         // This view is not flipped, so y counts up from the bottom; the notch row is at the very top.
         let rowY = size.height - notchH + (notchH - buttonH) / 2
 
@@ -172,7 +172,7 @@ final class IslandView: NSView {
         for (tab, view) in tabViews {
             let islandH = NotchModel.openHeight(for: tab)
             let bottom = size.height - islandH
-            view.frame = NSRect(x: 32, y: bottom + 22, width: size.width - 64, height: islandH - notchH - 30)
+            view.frame = NSRect(x: 24, y: bottom + 22, width: size.width - 48, height: islandH - notchH - 30)
             view.layoutContents()
         }
     }
