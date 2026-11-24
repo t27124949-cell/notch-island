@@ -49,10 +49,15 @@ final class NotchModel: ObservableObject {
     @Published var isOpen = false
     @Published var isPinned = false
     @Published var tab: NotchTab = .home {
-        didSet { islandHeight = NotchModel.openHeight(for: tab) }
+        didSet {
+            islandHeight = NotchModel.openHeight(for: tab)
+            islandWidth = NotchModel.openWidth(for: tab)
+        }
     }
     /// Height of the open island for the current tab. Short tabs get a short island.
     @Published var islandHeight: CGFloat = NotchModel.openHeight(for: .home)
+    /// Width of the open island's body for the current tab (the neck at the top stays notch-sized).
+    @Published var islandWidth: CGFloat = NotchModel.openWidth(for: .home)
     @Published var notchSize = CGSize(width: 190, height: 32)
     @Published var shelf: [URL] = []
     /// The latest live-activity announcement (shown briefly in the notch).
@@ -74,18 +79,27 @@ final class NotchModel: ObservableObject {
     let stats = StatsStore()
     let launcher = LauncherStore()
 
-    /// Total size of the expanded island (height includes the notch area).
-    let openSize = CGSize(width: 580, height: 230)
+    /// The panel is as big as the largest open island; the visible shape is smaller (see `openHeight`/`openWidth`).
+    let openSize = CGSize(width: 560, height: 260)
 
-    /// How tall the open island is for each tab (the notch row is included). Never above `openSize.height`.
+    /// How tall the open island is for each tab (the notch row and the tab row are included).
     static func openHeight(for tab: NotchTab) -> CGFloat {
         switch tab {
-        case .home: return 150
-        case .timer: return 170
-        case .apps: return 180
-        case .shelf: return 200
-        case .nowPlaying: return 230
-        default: return 230
+        case .home: return 180
+        case .timer: return 200
+        case .apps: return 210
+        case .shelf: return 230
+        default: return 260
+        }
+    }
+
+    /// How wide the body of the open island is for each tab.
+    static func openWidth(for tab: NotchTab) -> CGFloat {
+        switch tab {
+        case .home, .timer: return 440
+        case .apps, .shelf: return 500
+        case .nowPlaying, .calendar: return 560
+        default: return 520
         }
     }
 

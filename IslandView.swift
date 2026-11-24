@@ -32,7 +32,7 @@ final class IslandView: NSView {
     private var currentTab: NotchTab?
     private var cancellables = Set<AnyCancellable>()
     private(set) var isShownOpen = false
-    private var lastOpenHeight: CGFloat = 0
+    private var lastOpenSize = CGSize.zero
 
     init(model: NotchModel) {
         self.model = model
@@ -144,35 +144,30 @@ final class IslandView: NSView {
         content.frame = NSRect(origin: .zero, size: size)
         shapeView.frame = NSRect(origin: .zero, size: size)
 
-        let buttonW: CGFloat = 24
+        let buttonW: CGFloat = 26
         let buttonH: CGFloat = 24
         let gap: CGFloat = 2
-        let pad: CGFloat = 14
-        // This view is not flipped, so y counts up from the bottom; the notch row is at the very top.
-        let rowY = size.height - notchH + (notchH - buttonH) / 2
+        // This view is not flipped, so y counts up from the bottom. The notch row (top) stays empty so the
+        // menu bar beside the notch is never covered; the tab row sits just below it, centred.
+        let rowY = size.height - notchH - 6 - buttonH
 
         let enabled = NotchTab.allCases.filter { model.settings.isEnabled($0) }
-        let leftCount = min(7, (enabled.count + 2) / 2)
-        let left = Array(enabled.prefix(leftCount))
-        let right = Array(enabled.dropFirst(leftCount))
-
         for (tab, button) in tabButtons { button.isHidden = !enabled.contains(tab) }
-        for (index, tab) in left.enumerated() {
-            let x = pad + CGFloat(index) * (buttonW + gap)
+        let count = CGFloat(enabled.count + 1)   // tabs plus the pin button
+        var x = (size.width - (count * buttonW + (count - 1) * gap)) / 2
+        for tab in enabled {
             tabButtons[tab]?.frame = NSRect(x: x, y: rowY, width: buttonW, height: buttonH)
+            x += buttonW + gap
         }
-        // Right-hand tabs sit just left of the pin button, in tab-bar order.
-        for (index, tab) in right.enumerated() {
-            let x = size.width - pad - buttonW - CGFloat(right.count - index) * (buttonW + gap)
-            tabButtons[tab]?.frame = NSRect(x: x, y: rowY, width: buttonW, height: buttonH)
-        }
-        pinButton.frame = NSRect(x: size.width - pad - buttonW, y: rowY, width: buttonW, height: buttonH)
+        pinButton.frame = NSRect(x: x, y: rowY, width: buttonW, height: buttonH)
 
-        // Each tab has its own island height; the island hangs from the top of the panel.
+        // Each tab has its own island size; the island hangs from the top of the panel.
         for (tab, view) in tabViews {
             let islandH = NotchModel.openHeight(for: tab)
+            let bodyW = NotchModel.openWidth(for: tab)
             let bottom = size.height - islandH
-            view.frame = NSRect(x: 24, y: bottom + 22, width: size.width - 48, height: islandH - notchH - 30)
+            view.frame = NSRect(x: (size.width - bodyW) / 2 + 20, y: bottom + 14,
+                                width: bodyW - 40, height: islandH - notchH - 50)
             view.layoutContents()
         }
     }
@@ -186,33 +181,50 @@ final class IslandView: NSView {
     private let peekWidth: CGFloat = 420
     private var peekHeight: CGFloat { model.notchSize.height + 30 }
 
+    /// Every mode is drawn with the same 17-step outline (a neck with a body under it) so Core Animation can
+    /// morph between them. A closed pill is a "body" exactly as wide as the neck, with no shoulders.
     private func shapePath(_ mode: ShapeMode) -> CGPath {
         let bounds = CGRect(origin: .zero, size: model.openSize)
-        let width: CGFloat, height: CGFloat, tr: CGFloat, br: CGFloat
+        let notchH = model.notchSize.height
+        let neckW: CGFloat, tr: CGFloat, shoulderDrop: CGFloat, bodyHalf: CGFloat, bodyDrop: CGFloat
+        let corner: CGFloat, fillet: CGFloat, br: CGFloat
         switch mode {
-        case .closed:
-            width = model.notchSize.width + 12; height = model.notchSize.height; tr = 6; br = 12
-        case .ambient:
-            width = model.notchSize.width + 12 + 2 * ambientSlot; height = model.notchSize.height; tr = 6; br = 12
-        case .peek:
-            width = peekWidth; height = peekHeight; tr = 8; br = 18
+        case .closed, .ambient, .peek:
+            switch mode {
+            case .closed: neckW = model.notchSize.width + 12; tr = 6; bodyDrop = notchH; br = 12
+            case .ambient: neckW = model.notchSize.width + 12 + 2 * ambientSlot; tr = 6; bodyDrop = notchH; br = 12
+            default: neckW = peekWidth; tr = 8; bodyDrop = peekHeight; br = 18
+            }
+            shoulderDrop = tr; bodyHalf = neckW / 2 - tr; corner = 0; fillet = 0
         case .open:
-            width = model.openSize.width; height = model.islandHeight; tr = 14; br = 28
+            neckW = model.notchSize.width + 12; tr = 6
+            shoulderDrop = notchH; bodyHalf = model.islandWidth / 2; bodyDrop = model.islandHeight
+            corner = 14; fillet = 10; br = 26
         }
-        let left = bounds.midX - width / 2
-        let right = bounds.midX + width / 2
+        let mid = bounds.midX
         let top = bounds.maxY
-        let bottom = top - height
+        let xL = mid - neckW / 2 + tr, xR = mid + neckW / 2 - tr      // the straight sides of the neck
+        let bl = mid - bodyHalf, brx = mid + bodyHalf                 // the body's sides
+        let shoulder = top - shoulderDrop
+        let bottom = top - bodyDrop
 
         let p = CGMutablePath()
-        p.move(to: CGPoint(x: left, y: top))
-        p.addQuadCurve(to: CGPoint(x: left + tr, y: top - tr), control: CGPoint(x: left + tr, y: top))
-        p.addLine(to: CGPoint(x: left + tr, y: bottom + br))
-        p.addQuadCurve(to: CGPoint(x: left + tr + br, y: bottom), control: CGPoint(x: left + tr, y: bottom))
-        p.addLine(to: CGPoint(x: right - tr - br, y: bottom))
-        p.addQuadCurve(to: CGPoint(x: right - tr, y: bottom + br), control: CGPoint(x: right - tr, y: bottom))
-        p.addLine(to: CGPoint(x: right - tr, y: top - tr))
-        p.addQuadCurve(to: CGPoint(x: right, y: top), control: CGPoint(x: right - tr, y: top))
+        p.move(to: CGPoint(x: xL - tr, y: top))
+        p.addQuadCurve(to: CGPoint(x: xL, y: top - tr), control: CGPoint(x: xL, y: top))
+        p.addLine(to: CGPoint(x: xL, y: shoulder + fillet))
+        p.addQuadCurve(to: CGPoint(x: xL - fillet, y: shoulder), control: CGPoint(x: xL, y: shoulder))
+        p.addLine(to: CGPoint(x: bl + corner, y: shoulder))
+        p.addQuadCurve(to: CGPoint(x: bl, y: shoulder - corner), control: CGPoint(x: bl, y: shoulder))
+        p.addLine(to: CGPoint(x: bl, y: bottom + br))
+        p.addQuadCurve(to: CGPoint(x: bl + br, y: bottom), control: CGPoint(x: bl, y: bottom))
+        p.addLine(to: CGPoint(x: brx - br, y: bottom))
+        p.addQuadCurve(to: CGPoint(x: brx, y: bottom + br), control: CGPoint(x: brx, y: bottom))
+        p.addLine(to: CGPoint(x: brx, y: shoulder - corner))
+        p.addQuadCurve(to: CGPoint(x: brx - corner, y: shoulder), control: CGPoint(x: brx, y: shoulder))
+        p.addLine(to: CGPoint(x: xR + fillet, y: shoulder))
+        p.addQuadCurve(to: CGPoint(x: xR, y: shoulder + fillet), control: CGPoint(x: xR, y: shoulder))
+        p.addLine(to: CGPoint(x: xR, y: top - tr))
+        p.addQuadCurve(to: CGPoint(x: xR + tr, y: top), control: CGPoint(x: xR, y: top))
         p.closeSubpath()
         return p
     }
@@ -408,7 +420,7 @@ final class IslandView: NSView {
             peekView.alphaValue = 0
             peekView.isHidden = true
         }
-        if open { lastOpenHeight = model.islandHeight }
+        if open { lastOpenSize = CGSize(width: model.islandWidth, height: model.islandHeight) }
         applyShape(open ? .open : closedMode, animated: animated)
         syncAmbientVisibility(animated: animated)
 
@@ -457,9 +469,10 @@ final class IslandView: NSView {
     /// Update tab highlights and the pin icon from the model.
     private func refreshChrome() {
         if currentTab != model.tab { showTab(model.tab) }
-        if isShownOpen, lastOpenHeight != model.islandHeight {
-            lastOpenHeight = model.islandHeight
-            applyShape(.open, animated: true)   // glide to the new tab's height
+        let openNow = CGSize(width: model.islandWidth, height: model.islandHeight)
+        if isShownOpen, lastOpenSize != openNow {
+            lastOpenSize = openNow
+            applyShape(.open, animated: true)   // glide to the new tab's size
         }
         for (tab, button) in tabButtons {
             let selected = tab == model.tab

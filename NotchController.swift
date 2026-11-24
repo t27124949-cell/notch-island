@@ -194,11 +194,11 @@ final class NotchController {
         guard let screen = targetScreen else { return }
 
         let mouse = NSEvent.mouseLocation
-        let inside = activeZone(on: screen).contains(mouse)
+        let inside = isInsideActiveZone(mouse, on: screen)
 
         // The panel is bigger than a short island; let clicks fall through the empty part below it.
         if model.isOpen {
-            let capture = islandFrame(on: screen).contains(mouse)
+            let capture = islandRects(on: screen, margin: 0).contains { $0.contains(mouse) }
             if panel.ignoresMouseEvents == capture { panel.ignoresMouseEvents = !capture }
         }
 
@@ -251,7 +251,7 @@ final class NotchController {
     /// - Open: the whole expanded panel plus a forgiving margin, so it doesn't close if you drift slightly.
     private func activeZone(on screen: NSScreen) -> NSRect {
         if model.isOpen {
-            return islandFrame(on: screen).insetBy(dx: -12, dy: -12)
+            return islandFrame(on: screen).insetBy(dx: -12, dy: -12)   // bounding box (used for diagnostics)
         }
         let height = model.notchSize.height
         let width = model.notchSize.width + 2 * hotZoneSidePadding
@@ -268,7 +268,7 @@ final class NotchController {
         let zone = screen.map { activeZone(on: $0) }
         let events = log.isEmpty ? "(none yet)" : log.joined(separator: "\n")
         return """
-        Build: v22 (tappable now playing)
+        Build: v23 (T-shape island)
         Poll ticks: \(pollTicks)   Slow ticks (>0.25s gap): \(slowTicks)   Longest gap: \(String(format: "%.2f", maxGap))s
         Open: \(model.isOpen)   Pinned: \(model.isPinned)   Island shown open: \(island?.isShownOpen ?? false)
         Panel: visible=\(panel.isVisible) onScreen=\(panel.occlusionState.contains(.visible)) level=\(panel.level.rawValue) ignoresMouse=\(panel.ignoresMouseEvents)
@@ -316,8 +316,24 @@ final class NotchController {
     }
 
     /// The visible part of the open island (it can be shorter than the panel).
+    /// The two rectangles of the open island: the neck (notch row) and the body below it.
+    private func islandRects(on screen: NSScreen, margin: CGFloat) -> [NSRect] {
+        let notchH = model.notchSize.height
+        let neckW = model.notchSize.width + 12
+        let top = screen.frame.maxY
+        let neck = NSRect(x: screen.frame.midX - neckW / 2, y: top - notchH, width: neckW, height: notchH + 10)
+        let body = NSRect(x: screen.frame.midX - model.islandWidth / 2, y: top - model.islandHeight,
+                          width: model.islandWidth, height: model.islandHeight - notchH)
+        return [neck.insetBy(dx: -margin, dy: -margin), body.insetBy(dx: -margin, dy: -margin)]
+    }
+
+    private func isInsideActiveZone(_ point: NSPoint, on screen: NSScreen) -> Bool {
+        if model.isOpen { return islandRects(on: screen, margin: 12).contains { $0.contains(point) } }
+        return activeZone(on: screen).contains(point)
+    }
+
     private func islandFrame(on screen: NSScreen) -> NSRect {
-        let width = model.openSize.width
+        let width = model.islandWidth
         let height = model.islandHeight
         return NSRect(x: screen.frame.midX - width / 2, y: screen.frame.maxY - height, width: width, height: height)
     }
