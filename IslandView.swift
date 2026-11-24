@@ -465,9 +465,13 @@ final class IslandView: NSView {
             if currentTab != model.tab { showTab(model.tab) }
             if let tab = currentTab { tabViews[tab]?.activate() }
             if animated {
-                NSAnimationContext.runAnimationGroup { context in
-                    context.duration = 0.22
-                    self.content.animator().alphaValue = 1
+                // Let the shape start growing first, so the content never pokes out of a half-open island.
+                DispatchQueue.main.asyncAfter(deadline: .now() + 0.12) { [weak self] in
+                    guard let self, self.isShownOpen else { return }
+                    NSAnimationContext.runAnimationGroup { context in
+                        context.duration = 0.2
+                        self.content.animator().alphaValue = 1
+                    }
                 }
             } else {
                 content.alphaValue = 1

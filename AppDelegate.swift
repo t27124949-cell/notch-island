@@ -7,6 +7,10 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     func applicationDidFinishLaunching(_ notification: Notification) {
         controller.start()
         setUpStatusItem()
+        if !UserDefaults.standard.bool(forKey: "welcomeShown") {
+            UserDefaults.standard.set(true, forKey: "welcomeShown")
+            DispatchQueue.main.asyncAfter(deadline: .now() + 1.0) { [weak self] in self?.showWelcome() }
+        }
     }
 
     private func setUpStatusItem() {
@@ -17,6 +21,8 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         menu.addItem(withTitle: "Toggle Notch", action: #selector(toggleNotch), keyEquivalent: "")
             .target = self
         menu.addItem(withTitle: "Check for Updates…", action: #selector(checkForUpdates), keyEquivalent: "")
+            .target = self
+        menu.addItem(withTitle: "Welcome & Permissions…", action: #selector(showWelcome), keyEquivalent: "")
             .target = self
         menu.addItem(withTitle: "Report a Bug…", action: #selector(reportBug), keyEquivalent: "")
             .target = self
@@ -45,6 +51,32 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         if alert.runModal() == .alertFirstButtonReturn {
             NSPasteboard.general.clearContents()
             NSPasteboard.general.setString(info, forType: .string)
+        }
+    }
+
+    /// First-run explainer: how it works and exactly what macOS may ask for, and why.
+    @objc func showWelcome() {
+        NSApp.activate(ignoringOtherApps: true)
+        let alert = NSAlert()
+        alert.messageText = "Welcome to Notch Island"
+        alert.informativeText = """
+        Move your pointer to the notch to open the island. Click the pin to keep it open.
+
+        macOS may ask for two permissions, and both are optional:
+        • Calendar: only for the Calendar tab.
+        • Control of Music or Spotify: only for Now Playing (controls and lyrics).
+        Weather uses just the city you type, so it needs no location permission.
+
+        You can switch any tab off in Settings. To start with your Mac, turn on "Open at login" in Settings (it works once the app is in your Applications folder).
+
+        Tip: if the menu bar drops down when you touch the top of the screen, that is macOS's auto-hide menu bar. You can change it in System Settings → Control Center.
+        """
+        alert.addButton(withTitle: "Got it")
+        alert.addButton(withTitle: "Open Settings")
+        if alert.runModal() == .alertSecondButtonReturn {
+            controller.model.tab = .settings
+            controller.model.isPinned = true
+            controller.model.isOpen = true
         }
     }
 
