@@ -1,4 +1,5 @@
 import AppKit
+import QuickLookThumbnailing
 import Combine
 import QuartzCore
 
@@ -768,24 +769,55 @@ final class DashedBox: NSView {
     }
 }
 
+/// Picture thumbnails for shelf files (pictures, PDFs, documents), kept so tiles don't flicker when rebuilt.
+enum ShelfThumbnails {
+    private static let cache = NSCache<NSURL, NSImage>()
+
+    static func cached(_ url: URL) -> NSImage? { cache.object(forKey: url as NSURL) }
+
+    static func load(_ url: URL, completion: @escaping (NSImage) -> Void) {
+        let scale = NSScreen.main?.backingScaleFactor ?? 2
+        let request = QLThumbnailGenerator.Request(fileAt: url, size: CGSize(width: 96, height: 96), scale: scale,
+                                                   representationTypes: .thumbnail)
+        QLThumbnailGenerator.shared.generateBestRepresentation(for: request) { representation, _ in
+            guard let image = representation?.nsImage else { return }
+            DispatchQueue.main.async {
+                cache.setObject(image, forKey: url as NSURL)
+                completion(image)
+            }
+        }
+    }
+}
+
 final class ShelfItemView: NSView, NSDraggingSource {
     private let url: URL
     private let onRemove: () -> Void
+    private let onToggle: () -> Void
     private var mouseDownEvent: NSEvent?
     private var menuHandler = MenuHandler()
+    private let icon = NSImageView(frame: NSRect(x: 16, y: 8, width: 48, height: 48))
+    private let check = NSImageView(frame: NSRect(x: 56, y: 4, width: 20, height: 20))
 
-    init(url: URL, onRemove: @escaping () -> Void) {
+    init(url: URL, selected: Bool, onToggle: @escaping () -> Void, onRemove: @escaping () -> Void) {
         self.url = url
         self.onRemove = onRemove
+        self.onToggle = onToggle
         super.init(frame: NSRect(x: 0, y: 0, width: 80, height: 84))
         wantsLayer = true
         layer?.cornerRadius = 10
         layer?.backgroundColor = UI.dim(0.08).cgColor
 
-        let icon = NSImageView(frame: NSRect(x: 16, y: 8, width: 48, height: 48))
-        icon.image = NSWorkspace.shared.icon(forFile: url.path)
+        icon.image = ShelfThumbnails.cached(url) ?? NSWorkspace.shared.icon(forFile: url.path)
         icon.imageScaling = .scaleProportionallyUpOrDown
         addSubview(icon)
+        if ShelfThumbnails.cached(url) == nil {
+            ShelfThumbnails.load(url) { [weak self] image in self?.icon.image = image }
+        }
+
+        check.image = UI.symbol("checkmark.circle.fill", size: 16, weight: .semibold)
+        check.contentTintColor = .systemBlue
+        addSubview(check)
+        setSelected(selected)
 
         let name = UI.label(url.lastPathComponent, size: 10, color: UI.dim(0.75), alignment: .center)
         name.lineBreakMode = .byTruncatingMiddle
@@ -794,6 +826,14 @@ final class ShelfItemView: NSView, NSDraggingSource {
     }
 
     required init?(coder: NSCoder) { fatalError("not used") }
+
+    /// A selected tile gets a blue outline and a tick. Selected files are the ones AirDrop sends.
+    func setSelected(_ selected: Bool) {
+        check.isHidden = !selected
+        layer?.borderWidth = selected ? 2 : 0
+        layer?.borderColor = NSColor.systemBlue.cgColor
+        layer?.backgroundColor = (selected ? NSColor.systemBlue.withAlphaComponent(0.18) : UI.dim(0.08)).cgColor
+    }
 
     override var isFlipped: Bool { true }
     override func acceptsFirstMouse(for event: NSEvent?) -> Bool { true }
@@ -804,7 +844,16 @@ final class ShelfItemView: NSView, NSDraggingSource {
 
     override func mouseDown(with event: NSEvent) {
         mouseDownEvent = event
-        if event.clickCount == 2 { NSWorkspace.shared.open(url) }
+        if event.clickCount == 2 {
+            mouseDownEvent = nil
+            NSWorkspace.shared.open(url)
+        }
+    }
+
+    override func mouseUp(with event: NSEvent) {
+        // A plain click (no drag, not a double-click) selects or deselects the file.
+        if mouseDownEvent != nil && event.clickCount == 1 { onToggle() }
+        mouseDownEvent = nil
     }
 
     override func mouseDragged(with event: NSEvent) {
@@ -843,7 +892,9 @@ final class ShelfTabView: TabContentView {
     private let scroll = UI.scrollView(horizontal: true)
     private let doc = FlippedView()
     private let countLabel = UI.label("", size: 11, weight: .medium, color: UI.dim(0.55))
-    private let airDropButton = ClosureButton.pill("AirDrop", size: 11, height: 22) {}
+    private let airDropButton = ClosureButton.pill("AirDrop all", size: 11, height: 22) {}
+    private var selected = Set<URL>()
+    private var tiles: [URL: ShelfItemView] = [:]
     private var cancellable: AnyCancellable?
 
     init(model: NotchModel) {
@@ -854,8 +905,10 @@ final class ShelfTabView: TabContentView {
         scroll.documentView = doc
         airDropButton.handler = { [weak self] in
             guard let self, !self.model.shelf.isEmpty else { return }
+            // Selected files only; with nothing selected, everything on the shelf.
+            let chosen = self.selected.isEmpty ? self.model.shelf : self.model.shelf.filter { self.selected.contains($0) }
             self.requestPin?()   // keep the island open while the AirDrop picker is up
-            NSSharingService(named: .sendViaAirDrop)?.perform(withItems: self.model.shelf)
+            NSSharingService(named: .sendViaAirDrop)?.perform(withItems: chosen)
         }
         for view in [box, boxIcon, boxLabel, scroll, countLabel, airDropButton] as [NSView] { addSubview(view) }
         cancellable = model.$shelf
@@ -872,25 +925,49 @@ final class ShelfTabView: TabContentView {
         boxLabel.frame = NSRect(x: 0, y: bounds.midY + 4, width: bounds.width, height: 16)
         scroll.frame = NSRect(x: 0, y: 28, width: bounds.width, height: max(bounds.height - 28, 10))
         countLabel.frame = NSRect(x: 2, y: 5, width: max(bounds.width - 110, 10), height: 16)
-        airDropButton.frame.origin = NSPoint(x: bounds.width - airDropButton.frame.width, y: 0)
+        updateHeader()
         rebuild()
+    }
+
+    /// The count text and the AirDrop button follow the selection.
+    private func updateHeader() {
+        let total = model.shelf.count
+        let chosen = selected.count
+        if chosen == 0 {
+            countLabel.stringValue = total == 1 ? "1 item on the shelf · click to select" : "\(total) items on the shelf · click to select"
+        } else {
+            countLabel.stringValue = "\(chosen) of \(total) selected"
+        }
+        let title = chosen == 0 ? "AirDrop all" : "AirDrop \(chosen)"
+        airDropButton.setText(title, size: 11)
+        let font = NSFont.systemFont(ofSize: 11, weight: .semibold)
+        let width = ceil((title as NSString).size(withAttributes: [.font: font]).width + 28)
+        airDropButton.frame = NSRect(x: bounds.width - width, y: 0, width: width, height: 22)
     }
 
     private func rebuild() {
         let urls = model.shelf
+        selected = selected.intersection(urls)   // forget files that left the shelf
         countLabel.isHidden = urls.isEmpty
         airDropButton.isHidden = urls.isEmpty
-        countLabel.stringValue = urls.count == 1 ? "1 item on the shelf" : "\(urls.count) items on the shelf"
+        updateHeader()
         let empty = urls.isEmpty
         box.isHidden = !empty
         boxIcon.isHidden = !empty
         boxLabel.isHidden = !empty
         scroll.isHidden = empty
         doc.subviews.forEach { $0.removeFromSuperview() }
+        tiles = [:]
         for (index, url) in urls.enumerated() {
-            let tile = ShelfItemView(url: url) { [weak model] in model?.remove(url) }
+            let tile = ShelfItemView(url: url, selected: selected.contains(url), onToggle: { [weak self] in
+                guard let self else { return }
+                if self.selected.contains(url) { self.selected.remove(url) } else { self.selected.insert(url) }
+                self.tiles[url]?.setSelected(self.selected.contains(url))
+                self.updateHeader()
+            }, onRemove: { [weak model] in model?.remove(url) })
             tile.frame.origin = NSPoint(x: CGFloat(index) * 90, y: 4)
             doc.addSubview(tile)
+            tiles[url] = tile
         }
         doc.frame = NSRect(x: 0, y: 0, width: max(CGFloat(urls.count) * 90, scroll.bounds.width),
                            height: max(scroll.bounds.height, 92))
