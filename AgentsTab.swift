@@ -54,6 +54,8 @@ final class AgentsTabView: TabContentView {
     private let detail = UI.label("", size: 12, color: UI.dim(0.6), alignment: .center, lines: 3)
     private let status = UI.label("", size: 11, color: .systemOrange, alignment: .center, lines: 2)
     private let connectButton = ClosureButton.pill("Connect Claude Code", fill: NSColor.systemBlue) {}
+    private let connectCodex = ClosureButton.pill("Connect Codex", fill: NSColor.systemBlue) {}
+    private let addCodex = ClosureButton(frame: .zero)
     private let footer = ClosureButton(frame: .zero)
     private var cancellable: AnyCancellable?
 
@@ -63,10 +65,12 @@ final class AgentsTabView: TabContentView {
         icon.image = UI.symbol("terminal.fill", size: 22, weight: .regular)
         icon.contentTintColor = UI.dim(0.6)
         detail.cell?.wraps = true
-        connectButton.handler = { [weak store] in store?.connect() }
+        connectButton.handler = { [weak store] in store?.connect(.claude) }
+        connectCodex.handler = { [weak store] in store?.connect(.codex) }
+        addCodex.handler = { [weak store] in store?.connect(.codex) }
         footer.handler = { [weak store] in store?.disconnect() }
         scroll.documentView = doc
-        for view in [scroll, icon, title, detail, status, connectButton, footer] as [NSView] { addSubview(view) }
+        for view in [scroll, icon, title, detail, status, connectButton, connectCodex, footer, addCodex] as [NSView] { addSubview(view) }
         cancellable = store.objectWillChange
             .receive(on: DispatchQueue.main)
             .sink { [weak self] _ in DispatchQueue.main.async { self?.rebuild() } }
@@ -85,21 +89,30 @@ final class AgentsTabView: TabContentView {
         let showList = store.connected
         scroll.isHidden = !showList
         footer.isHidden = !showList
-        for view in [icon, title, detail, connectButton] as [NSView] { view.isHidden = showList && !store.pending.isEmpty }
+        for view in [icon, title, detail, connectButton, connectCodex] as [NSView] { view.isHidden = showList && !store.pending.isEmpty }
+        connectCodex.isHidden = connectCodex.isHidden || showList
+        connectButton.isHidden = connectButton.isHidden || showList
 
         status.stringValue = store.message ?? ""
         status.isHidden = (store.message ?? "").isEmpty
 
         if !showList {
             title.stringValue = "Approve your coding agent from the notch"
-            detail.stringValue = "Permission requests from Claude Code show up here, so you don't have to switch back to your editor. If the notch isn't running, your agent asks you as usual."
+            detail.stringValue = "Permission requests from Claude Code or Codex show up here, so you don't have to switch back to your editor. If the notch isn't running, your agent asks you as usual."
             connectButton.isHidden = false
+            connectCodex.isHidden = false
             layoutCentered(width: w, height: h, hasButton: true)
             return
         }
 
-        footer.setText("Connected to Claude Code · Disconnect", size: 10, weight: .medium, color: UI.dim(0.4))
+        let names = AgentKind.allCases.filter { store.connectedAgents.contains($0.rawValue) }.map { $0.name }.joined(separator: ", ")
+        footer.setText("Connected: \(names) · Disconnect", size: 10, weight: .medium, color: UI.dim(0.4))
         footer.frame = NSRect(x: 0, y: h - 16, width: w, height: 16)
+        addCodex.isHidden = store.connectedAgents.contains("codex")
+        addCodex.setText("+ Connect Codex", size: 10, weight: .medium, color: UI.dim(0.55))
+        addCodex.alignment = .right
+        addCodex.frame = NSRect(x: w - 110, y: h - 16, width: 110, height: 16)
+        footer.frame = NSRect(x: 0, y: h - 16, width: w - (addCodex.isHidden ? 0 : 114), height: 16)
         scroll.frame = NSRect(x: 0, y: 0, width: w, height: h - 20)
 
         doc.subviews.forEach { $0.removeFromSuperview() }
@@ -149,7 +162,9 @@ final class AgentsTabView: TabContentView {
         title.frame = NSRect(x: 0, y: y, width: w, height: 18); y += 22
         detail.frame = NSRect(x: 30, y: y, width: w - 60, height: hasButton ? 48 : 18); y += hasButton ? 54 : 20
         if hasButton {
-            connectButton.frame.origin = NSPoint(x: (w - connectButton.frame.width) / 2, y: y)
+            let total = connectButton.frame.width + 10 + connectCodex.frame.width
+            connectButton.frame.origin = NSPoint(x: (w - total) / 2, y: y)
+            connectCodex.frame.origin = NSPoint(x: (w - total) / 2 + connectButton.frame.width + 10, y: y)
             status.frame = NSRect(x: 20, y: y + 32, width: w - 40, height: 28)
         }
     }

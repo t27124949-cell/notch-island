@@ -26,6 +26,7 @@ final class SettingsStore: ObservableObject {
     @Published var activityMusic: Bool { didSet { save() } }
     @Published var activityBattery: Bool { didSet { save() } }
     @Published var activityTimer: Bool { didSet { save() } }
+    @Published var timerSound: String { didSet { save() } }        // a macOS sound name, or "Off"
     @Published var ambientMusic: Bool { didSet { save() } }        // equalizer in the closed notch while playing
     @Published var ambientBattery: Bool { didSet { save() } }      // battery level in the closed notch when idle
     @Published var focusModes: String { didSet { save() } }        // comma-separated Focus names
@@ -51,6 +52,7 @@ final class SettingsStore: ObservableObject {
         activityMusic = d.object(forKey: "activityMusic") as? Bool ?? true
         activityBattery = d.object(forKey: "activityBattery") as? Bool ?? true
         activityTimer = d.object(forKey: "activityTimer") as? Bool ?? true
+        timerSound = d.string(forKey: "timerSound") ?? "Glass"
         ambientMusic = d.object(forKey: "ambientMusic") as? Bool ?? true
         ambientBattery = d.object(forKey: "ambientBattery") as? Bool ?? true
         focusModes = d.string(forKey: "focusModes") ?? SettingsStore.defaultFocusModes
@@ -77,6 +79,7 @@ final class SettingsStore: ObservableObject {
         d.set(activityMusic, forKey: "activityMusic")
         d.set(activityBattery, forKey: "activityBattery")
         d.set(activityTimer, forKey: "activityTimer")
+        d.set(timerSound, forKey: "timerSound")
         d.set(ambientMusic, forKey: "ambientMusic")
         d.set(ambientBattery, forKey: "ambientBattery")
         d.set(focusModes, forKey: "focusModes")
@@ -107,6 +110,19 @@ final class SettingsStore: ObservableObject {
         return isEnabled(lastTab) ? lastTab : .settings
     }
 
+    // MARK: Timer sound
+
+    static let timerSounds = ["Glass", "Hero", "Ping", "Submarine", "Funk", "Basso", "Off"]
+
+    /// Plays the chosen sound twice, so it is hard to miss.
+    func playTimerSound() {
+        guard timerSound != "Off" else { return }
+        let name = timerSound
+        for delay in [0.0, 1.1] {
+            DispatchQueue.main.asyncAfter(deadline: .now() + delay) { NSSound(named: NSSound.Name(name))?.play() }
+        }
+    }
+
     // MARK: Reset
 
     func resetToDefaults() {
@@ -122,6 +138,7 @@ final class SettingsStore: ObservableObject {
         activityMusic = true
         activityBattery = true
         activityTimer = true
+        timerSound = "Glass"
         ambientMusic = true
         ambientBattery = true
         focusModes = SettingsStore.defaultFocusModes

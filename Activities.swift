@@ -176,6 +176,7 @@ final class ActivityMonitor {
     // MARK: Timer
 
     private func timerFinished() {
+        model?.settings.playTimerSound()   // the sound plays even when the on-screen announcement is off
         guard let model, model.settings.activityTimer else { return }
         let minutes = max(1, model.timer.total / 60)
         post(Activity(symbol: "timer", tint: .systemOrange, title: "Timer finished",

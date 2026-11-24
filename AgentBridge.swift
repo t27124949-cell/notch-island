@@ -24,13 +24,38 @@ struct AgentEvent: Identifiable {
 
 enum AgentDecision { case allow, deny, ask }
 
+/// Agents we can connect. Claude Code and Codex share the same permission-hook format; Cursor and Gemini CLI
+/// are left out until their hooks can be trusted to both allow and deny reliably.
+enum AgentKind: String, CaseIterable {
+    case claude, codex
+
+    var name: String { AgentStore.displayName(rawValue) }
+
+    var settingsPath: String {
+        switch self {
+        case .claude: return ".claude/settings.json"
+        case .codex: return ".codex/hooks.json"
+        }
+    }
+
+    /// (hook event, script mode, timeout in seconds)
+    var events: [(String, String, Int)] {
+        switch self {
+        case .claude: return [("PermissionRequest", "approve", 120), ("Stop", "event", 10), ("Notification", "event", 10)]
+        case .codex: return [("PermissionRequest", "approve", 120)]
+        }
+    }
+}
+
 /// Receives hook calls from coding agents on this Mac only (127.0.0.1, with a secret token), shows them in the
 /// notch and sends the answer back. If the app isn't running, or nobody answers in time, the hook script
 /// returns nothing and the agent shows its normal prompt, so nothing ever gets stuck or auto-approved.
 final class AgentStore: ObservableObject {
     @Published private(set) var pending: [AgentRequest] = []
     @Published private(set) var events: [AgentEvent] = []
-    @Published private(set) var connected: Bool
+    /// Agents whose hooks we have installed: "claude", "codex".
+    @Published private(set) var connectedAgents: Set<String>
+    var connected: Bool { !connectedAgents.isEmpty }
     @Published var message: String?
 
     /// How long a request waits for you before the agent's own prompt takes over.
@@ -50,12 +75,14 @@ final class AgentStore: ObservableObject {
 
     private let supportDir = URL(fileURLWithPath: NSHomeDirectory()).appendingPathComponent(".notchisland")
     private var scriptURL: URL { supportDir.appendingPathComponent("hook.sh") }
-    private var claudeSettings: URL {
-        URL(fileURLWithPath: NSHomeDirectory()).appendingPathComponent(".claude/settings.json")
-    }
 
     init() {
-        connected = UserDefaults.standard.bool(forKey: "agentsConnected")
+        let d = UserDefaults.standard
+        if let saved = d.stringArray(forKey: "connectedAgents") {
+            connectedAgents = Set(saved)
+        } else {
+            connectedAgents = d.bool(forKey: "agentsConnected") ? ["claude"] : []   // older builds
+        }
     }
 
     func startIfConnected() {
@@ -64,7 +91,7 @@ final class AgentStore: ObservableObject {
 
     // MARK: Connect / disconnect
 
-    func connect() {
+    func connect(_ kind: AgentKind) {
         message = nil
         do {
             try writeSupportFiles()
@@ -72,23 +99,32 @@ final class AgentStore: ObservableObject {
             message = "Couldn't create ~/.notchisland: \(error.localizedDescription)"
             return
         }
-        if let problem = installClaudeHooks() {
+        if let problem = installHooks(kind) {
             message = problem
             return
         }
-        UserDefaults.standard.set(true, forKey: "agentsConnected")
-        connected = true
+        connectedAgents.insert(kind.rawValue)
+        saveConnected()
         startServer()
     }
 
-    func disconnect() {
-        removeClaudeHooks()
-        UserDefaults.standard.set(false, forKey: "agentsConnected")
-        connected = false
+    /// Removes our hooks from one agent, or from all of them.
+    func disconnect(_ kind: AgentKind? = nil) {
+        for item in AgentKind.allCases where kind == nil || kind == item {
+            removeHooks(item)
+            connectedAgents.remove(item.rawValue)
+        }
+        saveConnected()
         message = nil
-        for request in pending { decide(request.id, .ask) }
-        listener?.cancel()
-        listener = nil
+        if connectedAgents.isEmpty {
+            for request in pending { decide(request.id, .ask) }
+            listener?.cancel()
+            listener = nil
+        }
+    }
+
+    private func saveConnected() {
+        UserDefaults.standard.set(Array(connectedAgents), forKey: "connectedAgents")
     }
 
     // MARK: Answering
@@ -148,32 +184,39 @@ final class AgentStore: ObservableObject {
         }
     }
 
-    private func installClaudeHooks() -> String? {
+    private func settingsURL(_ kind: AgentKind) -> URL {
+        URL(fileURLWithPath: NSHomeDirectory()).appendingPathComponent(kind.settingsPath)
+    }
+
+    private func installHooks(_ kind: AgentKind) -> String? {
         let fm = FileManager.default
-        let dir = claudeSettings.deletingLastPathComponent()
+        let url = settingsURL(kind)
+        let dir = url.deletingLastPathComponent()
         try? fm.createDirectory(at: dir, withIntermediateDirectories: true)
 
+        if kind == .codex {
+            let toml = dir.appendingPathComponent("config.toml")
+            if let text = try? String(contentsOf: toml, encoding: .utf8), text.contains("[hooks") || text.contains("[[hooks") {
+                return "Codex already has hooks in ~/.codex/config.toml. Codex warns when both files exist, so add the Notch Island hook there yourself."
+            }
+        }
+
         var root: [String: Any] = [:]
-        if let data = try? Data(contentsOf: claudeSettings) {
+        if let data = try? Data(contentsOf: url) {
             guard let object = (try? JSONSerialization.jsonObject(with: data)) as? [String: Any] else {
-                return "Couldn't read ~/.claude/settings.json. Is it valid JSON?"
+                return "Couldn't read \(kind.settingsPath). Is it valid JSON?"
             }
             root = object
-            let backup = dir.appendingPathComponent("settings.json.notchisland-backup")
+            let backup = dir.appendingPathComponent(url.lastPathComponent + ".notchisland-backup")
             if !fm.fileExists(atPath: backup.path) { try? data.write(to: backup) }
         }
 
         var hooks = root["hooks"] as? [String: Any] ?? [:]
         let command = "\"\(scriptURL.path)\""
-        let entries: [(String, String, Int)] = [
-            ("PermissionRequest", "approve", 120),
-            ("Stop", "event", 10),
-            ("Notification", "event", 10),
-        ]
-        for (event, mode, timeout) in entries {
+        for (event, mode, timeout) in kind.events {
             var groups = hooks[event] as? [[String: Any]] ?? []
             if groups.contains(where: { isOurs($0) }) { continue }
-            let hook: [String: Any] = ["type": "command", "command": "\(command) \(mode) claude", "timeout": timeout]
+            let hook: [String: Any] = ["type": "command", "command": "\(command) \(mode) \(kind.rawValue)", "timeout": timeout]
             groups.append(["hooks": [hook]])
             hooks[event] = groups
         }
@@ -182,18 +225,19 @@ final class AgentStore: ObservableObject {
         do {
             let out = try JSONSerialization.data(withJSONObject: root,
                                                  options: [.prettyPrinted, .sortedKeys, .withoutEscapingSlashes])
-            try out.write(to: claudeSettings, options: .atomic)
+            try out.write(to: url, options: .atomic)
             return nil
         } catch {
-            return "Couldn't update ~/.claude/settings.json: \(error.localizedDescription)"
+            return "Couldn't update \(kind.settingsPath): \(error.localizedDescription)"
         }
     }
 
-    private func removeClaudeHooks() {
-        guard let data = try? Data(contentsOf: claudeSettings),
+    private func removeHooks(_ kind: AgentKind) {
+        let url = settingsURL(kind)
+        guard let data = try? Data(contentsOf: url),
               var root = (try? JSONSerialization.jsonObject(with: data)) as? [String: Any],
               var hooks = root["hooks"] as? [String: Any] else { return }
-        for event in ["PermissionRequest", "Stop", "Notification"] {
+        for event in kind.events.map({ $0.0 }) {
             guard let groups = hooks[event] as? [[String: Any]] else { continue }
             let kept = groups.filter { !isOurs($0) }
             if kept.isEmpty { hooks.removeValue(forKey: event) } else { hooks[event] = kept }
@@ -201,7 +245,7 @@ final class AgentStore: ObservableObject {
         if hooks.isEmpty { root.removeValue(forKey: "hooks") } else { root["hooks"] = hooks }
         if let out = try? JSONSerialization.data(withJSONObject: root,
                                                  options: [.prettyPrinted, .sortedKeys, .withoutEscapingSlashes]) {
-            try? out.write(to: claudeSettings, options: .atomic)
+            try? out.write(to: url, options: .atomic)
         }
     }
 

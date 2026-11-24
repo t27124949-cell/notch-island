@@ -109,6 +109,7 @@ final class SettingsTabView: TabContentView, NSTextFieldDelegate {
     private let clickPill = ClosureButton(frame: .zero)
     private let startTabButton = ClosureButton(frame: .zero)
     private let retentionButton = ClosureButton(frame: .zero)
+    private let timerSoundButton = ClosureButton(frame: .zero)
     private let loginSwitch = PillSwitch(frame: NSRect(x: 0, y: 0, width: 36, height: 20))
     private let loginNote = UI.label("", size: 11, color: .systemOrange)
     private let featuresHeader = UI.label("FEATURES", size: 11, weight: .semibold, color: UI.dim(0.5))
@@ -365,6 +366,15 @@ final class SettingsTabView: TabContentView, NSTextFieldDelegate {
         addSwitchRow("Battery level in the notch when idle",
                      get: { [weak self] in self?.settings.ambientBattery ?? true },
                      set: { [weak self] in self?.settings.ambientBattery = $0 })
+
+        // Sound when the timer finishes
+        timerSoundButton.handler = { [weak self] in self?.showTimerSoundMenu() }
+        addRow(SettingRow(title: "Sound when the timer finishes", control: timerSoundButton, controlWidth: 110))
+        refreshers.append { [weak self] in
+            guard let self else { return }
+            self.timerSoundButton.setText(self.settings.timerSound + " ▾", size: 11, color: .white)
+            self.timerSoundButton.setFill(UI.dim(0.14), radius: 11)
+        }
     }
 
     private func buildClipboard() {
@@ -467,6 +477,20 @@ final class SettingsTabView: TabContentView, NSTextFieldDelegate {
         }
     }
 
+    private func showTimerSoundMenu() {
+        let handler = MenuHandler()
+        menuHandler = handler
+        let menu = NSMenu()
+        for name in SettingsStore.timerSounds {
+            menu.addItem(handler.item(name) { [weak self] in
+                self?.settings.timerSound = name
+                if name != "Off" { NSSound(named: NSSound.Name(name))?.play() }   // preview
+            })
+        }
+        let show: () -> Void = { _ = menu.popUp(positioning: nil, at: NSPoint(x: 0, y: self.timerSoundButton.bounds.height + 2), in: self.timerSoundButton) }
+        if let holdOpen { holdOpen(show) } else { show() }
+    }
+
     private func showRetentionMenu() {
         let handler = MenuHandler()
         menuHandler = handler
@@ -515,9 +539,9 @@ final class SettingsTabView: TabContentView, NSTextFieldDelegate {
 
         // Rows are in creation order: behavior (9), clipboard (3), general (1).
         let behaviorRows = Array(rows.prefix(12))
-        let activityRows = Array(rows.dropFirst(12).prefix(6))
-        let clipboardRows = Array(rows.dropFirst(18).prefix(3))
-        let generalRows = Array(rows.dropFirst(21))
+        let activityRows = Array(rows.dropFirst(12).prefix(7))
+        let clipboardRows = Array(rows.dropFirst(19).prefix(3))
+        let generalRows = Array(rows.dropFirst(22))
 
         func layout(_ group: [SettingRow]) {
             for row in group {

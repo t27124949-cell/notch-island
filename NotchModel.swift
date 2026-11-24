@@ -196,7 +196,6 @@ final class FocusTimer: ObservableObject {
         if remaining <= 0 {
             remaining = 0
             stop()
-            NSSound.beep()
             onFinish?()
         }
     }
