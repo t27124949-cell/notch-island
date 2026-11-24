@@ -285,6 +285,18 @@ final class SettingsTabView: TabContentView, NSTextFieldDelegate {
             guard let self else { return }
             autoScrollSwitch.isOn = self.settings.autoScrollLyrics
         }
+
+        // Lyrics timing nudge
+        let offsetSlider = slider(min: -3, max: 3) { [weak self] value in
+            self?.settings.lyricsOffset = (value * 4).rounded() / 4
+        }
+        let offsetRow = SettingRow(title: "   Lyrics timing (+ = lines appear sooner)", control: offsetSlider, controlWidth: 150, showsValue: true)
+        addRow(offsetRow)
+        refreshers.append { [weak self] in
+            guard let self else { return }
+            offsetSlider.doubleValue = self.settings.lyricsOffset
+            offsetRow.valueLabel.stringValue = String(format: "%+.2f s", self.settings.lyricsOffset)
+        }
         addKeyRow()
         addFocusRow()
     }
@@ -455,6 +467,12 @@ final class SettingsTabView: TabContentView, NSTextFieldDelegate {
         }
         addRow(SettingRow(title: "Version \(UpdateChecker.currentVersion)", control: updateButton, controlWidth: 160, controlHeight: 22))
 
+        // Bug report
+        let bugButton = ClosureButton.pill("Report a bug", size: 11, height: 22) {
+            (NSApp.delegate as? AppDelegate)?.reportBug()
+        }
+        addRow(SettingRow(title: "Something not working?", control: bugButton, controlWidth: bugButton.frame.width, controlHeight: 22))
+
         let reset = ClosureButton.pill("Reset settings", size: 11, fill: UI.dim(0.14), height: 24) { [weak self] in
             self?.settings.resetToDefaults()
         }
@@ -538,10 +556,10 @@ final class SettingsTabView: TabContentView, NSTextFieldDelegate {
         y += CGFloat((featureCells.count + Int(columns) - 1) / Int(columns)) * 38 + 8
 
         // Rows are in creation order: behavior (9), clipboard (3), general (1).
-        let behaviorRows = Array(rows.prefix(12))
-        let activityRows = Array(rows.dropFirst(12).prefix(7))
-        let clipboardRows = Array(rows.dropFirst(19).prefix(3))
-        let generalRows = Array(rows.dropFirst(22))
+        let behaviorRows = Array(rows.prefix(13))
+        let activityRows = Array(rows.dropFirst(13).prefix(7))
+        let clipboardRows = Array(rows.dropFirst(20).prefix(3))
+        let generalRows = Array(rows.dropFirst(23))
 
         func layout(_ group: [SettingRow]) {
             for row in group {

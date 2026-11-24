@@ -18,6 +18,8 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
             .target = self
         menu.addItem(withTitle: "Check for Updates…", action: #selector(checkForUpdates), keyEquivalent: "")
             .target = self
+        menu.addItem(withTitle: "Report a Bug…", action: #selector(reportBug), keyEquivalent: "")
+            .target = self
         menu.addItem(withTitle: "Debug Info…", action: #selector(showDebugInfo), keyEquivalent: "")
             .target = self
         menu.addItem(.separator())
@@ -44,6 +46,32 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
             NSPasteboard.general.clearContents()
             NSPasteboard.general.setString(info, forType: .string)
         }
+    }
+
+    /// Opens a pre-filled GitHub issue with the debug info (home folder hidden).
+    @objc func reportBug() {
+        let info = controller.debugInfo().replacingOccurrences(of: NSHomeDirectory(), with: "~")
+        let system = ProcessInfo.processInfo.operatingSystemVersionString
+        let body = """
+        **What happened?**
+
+
+        **What did you expect?**
+
+
+        Notch Island \(UpdateChecker.currentVersion) · macOS \(system)
+
+        <details><summary>Debug info</summary>
+
+        ```
+        \(info)
+        ```
+        </details>
+        """
+        guard var parts = URLComponents(string: "https://github.com/t27124949-cell/notch-island/issues/new") else { return }
+        parts.queryItems = [URLQueryItem(name: "title", value: "Bug: "),
+                            URLQueryItem(name: "body", value: String(body.prefix(5000)))]
+        if let url = parts.url { NSWorkspace.shared.open(url) }
     }
 
     @objc private func checkForUpdates() {

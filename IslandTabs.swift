@@ -245,7 +245,12 @@ final class HomeTabView: TabContentView {
             batteryLabel.isHidden = false
             batteryState.isHidden = false
             batteryLabel.stringValue = "\(battery.level)%"
-            batteryState.stringValue = battery.charging ? "Charging" : "On battery"
+            let time = batteryTimeText(charging: battery.charging)
+            if battery.charging {
+                batteryState.stringValue = time.map { "Charging · \($0) to full" } ?? "Charging"
+            } else {
+                batteryState.stringValue = time.map { "On battery · \($0) left" } ?? "On battery"
+            }
             batteryIcon.image = UI.symbol(battery.charging ? "battery.100.bolt" : "battery.75", size: 18, weight: .regular)
             batteryIcon.contentTintColor = (battery.level <= 20 && !battery.charging) ? .systemRed : .systemGreen
         } else {
@@ -611,6 +616,7 @@ final class NowPlayingTabView: TabContentView {
         for view in [seekSlider, elapsedLabel, remainingLabel] as [NSView] { view.isHidden = !(hasTrack && showingSeek) }
         updateSeek(store.currentPosition())
         lyricsView.autoScrollPlain = settings.autoScrollLyrics
+        lyricsView.offset = settings.lyricsOffset
         lyricsView.set(showingLyrics ? store.lyrics : .idle)
         if showingLyrics {
             lyricsView.setPosition(store.currentPosition())
@@ -741,6 +747,8 @@ final class ShelfTabView: TabContentView {
     private let boxLabel = UI.label("Drop files here to park them", size: 12, color: UI.dim(0.55), alignment: .center)
     private let scroll = UI.scrollView(horizontal: true)
     private let doc = FlippedView()
+    private let countLabel = UI.label("", size: 11, weight: .medium, color: UI.dim(0.55))
+    private let airDropButton = ClosureButton.pill("AirDrop", size: 11, height: 22) {}
     private var cancellable: AnyCancellable?
 
     init(model: NotchModel) {
@@ -749,7 +757,12 @@ final class ShelfTabView: TabContentView {
         boxIcon.image = UI.symbol("arrow.down.doc", size: 20, weight: .regular)
         boxIcon.contentTintColor = UI.dim(0.55)
         scroll.documentView = doc
-        for view in [box, boxIcon, boxLabel, scroll] as [NSView] { addSubview(view) }
+        airDropButton.handler = { [weak self] in
+            guard let self, !self.model.shelf.isEmpty else { return }
+            self.requestPin?()   // keep the island open while the AirDrop picker is up
+            NSSharingService(named: .sendViaAirDrop)?.perform(withItems: self.model.shelf)
+        }
+        for view in [box, boxIcon, boxLabel, scroll, countLabel, airDropButton] as [NSView] { addSubview(view) }
         cancellable = model.$shelf
             .receive(on: DispatchQueue.main)
             .sink { [weak self] _ in self?.rebuild() }
@@ -762,12 +775,17 @@ final class ShelfTabView: TabContentView {
         box.frame = bounds
         boxIcon.frame = NSRect(x: bounds.midX - 14, y: bounds.midY - 30, width: 28, height: 28)
         boxLabel.frame = NSRect(x: 0, y: bounds.midY + 4, width: bounds.width, height: 16)
-        scroll.frame = bounds
+        scroll.frame = NSRect(x: 0, y: 28, width: bounds.width, height: max(bounds.height - 28, 10))
+        countLabel.frame = NSRect(x: 2, y: 5, width: max(bounds.width - 110, 10), height: 16)
+        airDropButton.frame.origin = NSPoint(x: bounds.width - airDropButton.frame.width, y: 0)
         rebuild()
     }
 
     private func rebuild() {
         let urls = model.shelf
+        countLabel.isHidden = urls.isEmpty
+        airDropButton.isHidden = urls.isEmpty
+        countLabel.stringValue = urls.count == 1 ? "1 item on the shelf" : "\(urls.count) items on the shelf"
         let empty = urls.isEmpty
         box.isHidden = !empty
         boxIcon.isHidden = !empty

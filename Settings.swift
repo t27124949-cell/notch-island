@@ -21,6 +21,7 @@ final class SettingsStore: ObservableObject {
     @Published var use24Hour: Bool { didSet { save() } }
     @Published var showLyrics: Bool { didSet { save() } }
     @Published var glassAmount: Double { didSet { save() } }       // 0 = solid black, 1 = frosted glass
+    @Published var lyricsOffset: Double { didSet { save() } }       // seconds; + shows each line sooner
     @Published var autoScrollLyrics: Bool { didSet { save() } }   // estimated scrolling for lyrics that have no timing
     @Published var activitiesEnabled: Bool { didSet { save() } }   // live previews in the notch
     @Published var activityMusic: Bool { didSet { save() } }
@@ -47,6 +48,7 @@ final class SettingsStore: ObservableObject {
         use24Hour = d.bool(forKey: "use24Hour")
         showLyrics = d.object(forKey: "showLyrics") as? Bool ?? true
         autoScrollLyrics = d.object(forKey: "autoScrollLyrics") as? Bool ?? true
+        lyricsOffset = d.object(forKey: "lyricsOffset") as? Double ?? 0
         glassAmount = d.object(forKey: "glassAmount") as? Double ?? 0
         activitiesEnabled = d.object(forKey: "activitiesEnabled") as? Bool ?? true
         activityMusic = d.object(forKey: "activityMusic") as? Bool ?? true
@@ -74,6 +76,7 @@ final class SettingsStore: ObservableObject {
         d.set(use24Hour, forKey: "use24Hour")
         d.set(showLyrics, forKey: "showLyrics")
         d.set(autoScrollLyrics, forKey: "autoScrollLyrics")
+        d.set(lyricsOffset, forKey: "lyricsOffset")
         d.set(glassAmount, forKey: "glassAmount")
         d.set(activitiesEnabled, forKey: "activitiesEnabled")
         d.set(activityMusic, forKey: "activityMusic")
@@ -144,6 +147,7 @@ final class SettingsStore: ObservableObject {
         focusModes = SettingsStore.defaultFocusModes
         showLyrics = true
         autoScrollLyrics = true
+        lyricsOffset = 0
         glassAmount = 0
         clipboardMaxItems = SettingsStore.defaultClipboardItems
         clipboardPersist = true

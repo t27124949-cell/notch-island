@@ -287,6 +287,9 @@ final class LyricsView: NSView {
 
     /// Estimated scrolling for lyrics without timing. Intros and outros are skipped over a little, but
     /// long breaks and repeated choruses will drift, which is why this is labelled as an estimate.
+    /// Timing nudge in seconds from the settings slider.
+    var offset: Double = 0
+
     func updatePlain(position: Double, duration: Double) {
         guard case .plain = state, autoScrollPlain, duration > 1 else { return }
         guard Date() >= manualScrollUntil else { return }
@@ -344,8 +347,9 @@ final class LyricsView: NSView {
 
     /// Highlight the line being sung at `seconds`. When the song moves on by one line the rows glide up
     /// and the new line fades in; jumps (seeking, a new song) change instantly.
-    func setPosition(_ seconds: Double) {
+    func setPosition(_ rawSeconds: Double) {
         guard !lines.isEmpty else { return }
+        let seconds = rawSeconds + offset   // the person's timing nudge (+ = lines appear sooner)
         var current = -1
         for (i, line) in lines.enumerated() where line.time <= seconds + 0.25 { current = i }
         guard current != shownIndex else { return }

@@ -210,6 +210,28 @@ final class FocusTimer: ObservableObject {
 }
 
 /// Battery percentage + charging state, via IOKit.
+/// "2h 05m" style text for the battery: time left on battery, or time until full while charging.
+func batteryTimeText(charging: Bool) -> String? {
+    var minutes: Int?
+    if charging {
+        if let info = IOPSCopyPowerSourcesInfo()?.takeRetainedValue(),
+           let list = IOPSCopyPowerSourcesList(info)?.takeRetainedValue() as? [CFTypeRef] {
+            for source in list {
+                if let desc = IOPSGetPowerSourceDescription(info, source)?.takeUnretainedValue() as? [String: Any],
+                   let value = desc[kIOPSTimeToFullChargeKey] as? Int, value > 0 {
+                    minutes = value
+                    break
+                }
+            }
+        }
+    } else {
+        let seconds = IOPSGetTimeRemainingEstimate()
+        if seconds > 0 { minutes = Int(seconds / 60) }
+    }
+    guard let total = minutes, total > 0 else { return nil }
+    return total >= 60 ? String(format: "%dh %02dm", total / 60, total % 60) : "\(total)m"
+}
+
 func readBattery() -> (level: Int, charging: Bool)? {
     guard let info = IOPSCopyPowerSourcesInfo()?.takeRetainedValue(),
           let list = IOPSCopyPowerSourcesList(info)?.takeRetainedValue() as? [CFTypeRef] else { return nil }
