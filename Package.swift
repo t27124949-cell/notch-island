@@ -31,6 +31,8 @@ let package = Package(
                 "Activities.swift",
                 "CalendarMonthTab.swift",
                 "Updater.swift",
+                "AgentBridge.swift",
+                "AgentsTab.swift",
             ]
         )
     ]

@@ -233,7 +233,7 @@ final class NotchController {
         }
 
         // A fresh left-click outside the island dismisses it, even when pinned.
-        if freshClick && !inside && model.isOpen && model.settings.clickOutsideCloses {
+        if freshClick && !inside && model.isOpen && !model.isPinned && model.settings.clickOutsideCloses {
             note("click outside → dismiss")
             model.dismiss()
         }
@@ -242,6 +242,7 @@ final class NotchController {
     private func openIsland(reason: String) {
         note("opening (\(reason))")
         model.tab = model.settings.tabToOpen(lastTab: model.tab)
+        if !model.agents.pending.isEmpty, model.settings.isEnabled(.agents) { model.tab = .agents }
         if model.settings.clickToOpen { model.isPinned = true } // a click-opened island stays until dismissed
         model.isOpen = true
     }

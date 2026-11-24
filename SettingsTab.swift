@@ -225,6 +225,16 @@ final class SettingsTabView: TabContentView, NSTextFieldDelegate {
             outsideSwitch.isOn = self.settings.clickOutsideCloses
         }
 
+        // Glass look
+        let glassSlider = slider(min: 0, max: 1) { [weak self] value in self?.settings.glassAmount = value }
+        let glassRow = SettingRow(title: "Glass look (0 = solid black)", control: glassSlider, controlWidth: 150, showsValue: true)
+        addRow(glassRow)
+        refreshers.append { [weak self] in
+            guard let self else { return }
+            glassSlider.doubleValue = self.settings.glassAmount
+            glassRow.valueLabel.stringValue = "\(Int((self.settings.glassAmount * 100).rounded()))%"
+        }
+
         // Open on which tab
         startTabButton.handler = { [weak self] in self?.showStartTabMenu() }
         addRow(SettingRow(title: "Open on", control: startTabButton, controlWidth: 130))
@@ -504,10 +514,10 @@ final class SettingsTabView: TabContentView, NSTextFieldDelegate {
         y += CGFloat((featureCells.count + Int(columns) - 1) / Int(columns)) * 38 + 8
 
         // Rows are in creation order: behavior (9), clipboard (3), general (1).
-        let behaviorRows = Array(rows.prefix(11))
-        let activityRows = Array(rows.dropFirst(11).prefix(6))
-        let clipboardRows = Array(rows.dropFirst(17).prefix(3))
-        let generalRows = Array(rows.dropFirst(20))
+        let behaviorRows = Array(rows.prefix(12))
+        let activityRows = Array(rows.dropFirst(12).prefix(6))
+        let clipboardRows = Array(rows.dropFirst(18).prefix(3))
+        let generalRows = Array(rows.dropFirst(21))
 
         func layout(_ group: [SettingRow]) {
             for row in group {

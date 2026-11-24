@@ -4,7 +4,7 @@ import IOKit.ps
 
 enum NotchTab: String, CaseIterable {
     // The order here is the order of the tab bar.
-    case home, controls, apps, launcher, nowPlaying, calendar, weather
+    case home, controls, apps, launcher, agents, nowPlaying, calendar, weather
     case shelf, timer, clipboard, notes, stats, settings
 
     var symbol: String {
@@ -13,6 +13,7 @@ enum NotchTab: String, CaseIterable {
         case .controls: return "slider.horizontal.3"
         case .apps: return "square.grid.2x2.fill"
         case .launcher: return "magnifyingglass"
+        case .agents: return "terminal.fill"
         case .nowPlaying: return "music.note"
         case .calendar: return "calendar"
         case .weather: return "cloud.sun.fill"
@@ -31,6 +32,7 @@ enum NotchTab: String, CaseIterable {
         case .controls: return "Quick Controls"
         case .apps: return "Open Apps"
         case .launcher: return "Launcher"
+        case .agents: return "Coding Agents"
         case .nowPlaying: return "Now Playing"
         case .calendar: return "Calendar"
         case .weather: return "Weather"
@@ -73,6 +75,7 @@ final class NotchModel: ObservableObject {
     let weather = WeatherStore()
     let stats = StatsStore()
     let launcher = LauncherStore()
+    let agents = AgentStore()
 
     /// Total size of the expanded island (height includes the notch area).
     let openSize = CGSize(width: 580, height: 230)
@@ -96,6 +99,16 @@ final class NotchModel: ObservableObject {
             .receive(on: DispatchQueue.main)
             .sink { [weak self] _ in self?.applySettings() }
         applySettings()
+        agents.onNewRequest = { [weak self] request in
+            self?.activity = Activity(symbol: "terminal.fill", tint: .systemOrange,
+                                      title: "\(request.agent) needs approval", subtitle: request.tool, duration: 8)
+        }
+        agents.onEvent = { [weak self] event in
+            guard let self, self.settings.activitiesEnabled else { return }
+            self.activity = Activity(symbol: "checkmark.circle.fill", tint: .systemGreen,
+                                     title: event.agent, subtitle: event.title, duration: 4)
+        }
+        agents.startIfConnected()
     }
 
     /// Push settings into the parts of the app that run in the background.

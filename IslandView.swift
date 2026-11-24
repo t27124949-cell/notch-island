@@ -25,6 +25,8 @@ final class ShapeView: NSView {
 final class IslandView: NSView {
     private let model: NotchModel
     private let shapeView: ShapeView
+    private let blurView = NSVisualEffectView()
+    private let blurMask = CAShapeLayer()
     private let content = NSView()
     private let pinButton = ClosureButton(frame: .zero)
     private var tabButtons: [NotchTab: ClosureButton] = [:]
@@ -43,6 +45,14 @@ final class IslandView: NSView {
         appearance = NSAppearance(named: .darkAqua)
         registerForDraggedTypes([.fileURL])
 
+        blurView.material = .hudWindow
+        blurView.blendingMode = .behindWindow
+        blurView.state = .active
+        blurView.appearance = NSAppearance(named: .darkAqua)
+        blurView.wantsLayer = true
+        blurView.alphaValue = 0
+        blurView.layer?.mask = blurMask
+        addSubview(blurView)
         addSubview(shapeView)
         content.alphaValue = 0
         content.isHidden = true
@@ -65,11 +75,18 @@ final class IslandView: NSView {
             }
             .store(in: &cancellables)
 
+        model.agents.objectWillChange
+            .receive(on: DispatchQueue.main)
+            .sink { [weak self] _ in DispatchQueue.main.async { self?.layoutContents() } }
+            .store(in: &cancellables)
+
         model.settings.objectWillChange
             .receive(on: DispatchQueue.main)
             .sink { [weak self] _ in
-                self?.layoutContents()
-                self?.refreshAmbient()
+                guard let self else { return }
+                self.layoutContents()
+                self.refreshAmbient()
+                if self.shapeMode == .open { self.applyGlass(mode: .open, animated: false, path: self.shapePath(.open)) }
             }
             .store(in: &cancellables)
 
@@ -110,6 +127,7 @@ final class IslandView: NSView {
             .controls: ControlsTabView(store: model.controls),
             .apps: AppsTabView(store: model.apps),
             .launcher: LauncherTabView(store: model.launcher),
+            .agents: AgentsTabView(store: model.agents),
             .nowPlaying: NowPlayingTabView(store: model.nowPlaying, settings: model.settings),
             .calendar: CalendarTabView(store: model.calendar),
             .weather: WeatherTabView(store: model.weather),
@@ -143,19 +161,24 @@ final class IslandView: NSView {
         let notchH = model.notchSize.height
         content.frame = NSRect(origin: .zero, size: size)
         shapeView.frame = NSRect(origin: .zero, size: size)
+        blurView.frame = NSRect(origin: .zero, size: size)
 
-        let buttonW: CGFloat = 24
+        var buttonW: CGFloat = 24
         let buttonH: CGFloat = 24
         let gap: CGFloat = 2
         let pad: CGFloat = 14
         // This view is not flipped, so y counts up from the bottom; the notch row is at the very top.
         let rowY = size.height - notchH + (notchH - buttonH) / 2
 
-        let enabled = NotchTab.allCases.filter { model.settings.isEnabled($0) }
+        let enabled = NotchTab.allCases.filter { model.settings.isEnabled($0) && ($0 != .agents || model.agents.isVisible) }
         let leftCount = min(7, (enabled.count + 2) / 2)
         let left = Array(enabled.prefix(leftCount))
         let right = Array(enabled.dropFirst(leftCount))
 
+        // With many tabs the buttons shrink so they never run under the notch.
+        let perSide = CGFloat(max(left.count, right.count + 1))
+        let room = (size.width - (model.notchSize.width + 16)) / 2 - pad
+        buttonW = min(buttonW, room / perSide - gap)
         for (tab, button) in tabButtons { button.isHidden = !enabled.contains(tab) }
         for (index, tab) in left.enumerated() {
             let x = pad + CGFloat(index) * (buttonW + gap)
@@ -230,6 +253,31 @@ final class IslandView: NSView {
             layer.add(animation, forKey: "path")
         }
         layer.path = newPath
+        applyGlass(mode: mode, animated: animated, path: newPath)
+    }
+
+    /// Glass look: only while open (the closed pill must stay black to blend with the real notch). The shape
+    /// gets less opaque and a blurred copy of what's behind it shows through, clipped to the same outline.
+    private func applyGlass(mode: ShapeMode, animated: Bool, path: CGPath) {
+        let glass = mode == .open ? CGFloat(model.settings.glassAmount) : 0
+        shapeView.shapeLayer.fillColor = NSColor.black.withAlphaComponent(1 - 0.55 * glass).cgColor
+        if animated {
+            let animation = CABasicAnimation(keyPath: "path")
+            animation.fromValue = blurMask.presentation()?.path ?? blurMask.path
+            animation.toValue = path
+            animation.duration = mode == .open ? 0.38 : 0.28
+            animation.timingFunction = CAMediaTimingFunction(controlPoints: 0.2, 0.8, 0.2, 1.0)
+            blurMask.add(animation, forKey: "path")
+        }
+        blurMask.path = path
+        if animated {
+            NSAnimationContext.runAnimationGroup { context in
+                context.duration = 0.25
+                blurView.animator().alphaValue = glass
+            }
+        } else {
+            blurView.alphaValue = glass
+        }
     }
 
     // MARK: Ambient (always-on, closed notch)

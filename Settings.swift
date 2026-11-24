@@ -20,6 +20,7 @@ final class SettingsStore: ObservableObject {
     @Published var startTab: String { didSet { save() } }          // "last" or a NotchTab raw value
     @Published var use24Hour: Bool { didSet { save() } }
     @Published var showLyrics: Bool { didSet { save() } }
+    @Published var glassAmount: Double { didSet { save() } }       // 0 = solid black, 1 = frosted glass
     @Published var autoScrollLyrics: Bool { didSet { save() } }   // estimated scrolling for lyrics that have no timing
     @Published var activitiesEnabled: Bool { didSet { save() } }   // live previews in the notch
     @Published var activityMusic: Bool { didSet { save() } }
@@ -45,6 +46,7 @@ final class SettingsStore: ObservableObject {
         use24Hour = d.bool(forKey: "use24Hour")
         showLyrics = d.object(forKey: "showLyrics") as? Bool ?? true
         autoScrollLyrics = d.object(forKey: "autoScrollLyrics") as? Bool ?? true
+        glassAmount = d.object(forKey: "glassAmount") as? Double ?? 0
         activitiesEnabled = d.object(forKey: "activitiesEnabled") as? Bool ?? true
         activityMusic = d.object(forKey: "activityMusic") as? Bool ?? true
         activityBattery = d.object(forKey: "activityBattery") as? Bool ?? true
@@ -70,6 +72,7 @@ final class SettingsStore: ObservableObject {
         d.set(use24Hour, forKey: "use24Hour")
         d.set(showLyrics, forKey: "showLyrics")
         d.set(autoScrollLyrics, forKey: "autoScrollLyrics")
+        d.set(glassAmount, forKey: "glassAmount")
         d.set(activitiesEnabled, forKey: "activitiesEnabled")
         d.set(activityMusic, forKey: "activityMusic")
         d.set(activityBattery, forKey: "activityBattery")
@@ -124,6 +127,7 @@ final class SettingsStore: ObservableObject {
         focusModes = SettingsStore.defaultFocusModes
         showLyrics = true
         autoScrollLyrics = true
+        glassAmount = 0
         clipboardMaxItems = SettingsStore.defaultClipboardItems
         clipboardPersist = true
         clipboardRetentionDays = SettingsStore.defaultClipboardDays
