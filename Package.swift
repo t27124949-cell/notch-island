@@ -35,6 +35,7 @@ let package = Package(
                 "AgentsTab.swift",
                 "Bluetooth.swift",
                 "LyricsSync.swift",
+                "AudioOutputs.swift",
             ]
         )
     ]

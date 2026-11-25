@@ -54,6 +54,15 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         }
     }
 
+    private func macModel() -> String {
+        var size = 0
+        sysctlbyname("hw.model", nil, &size, nil, 0)
+        guard size > 0 else { return "unknown" }
+        var chars = [CChar](repeating: 0, count: size)
+        sysctlbyname("hw.model", &chars, &size, nil, 0)
+        return String(cString: chars)
+    }
+
     /// First-run explainer: how it works and exactly what macOS may ask for, and why.
     @objc func showWelcome() {
         NSApp.activate(ignoringOtherApps: true)
@@ -92,7 +101,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         **What did you expect?**
 
 
-        Notch Island \(UpdateChecker.currentVersion) · macOS \(system)
+        Notch Island \(UpdateChecker.currentVersion) · macOS \(system) · Mac \(macModel())
 
         <details><summary>Debug info</summary>
 

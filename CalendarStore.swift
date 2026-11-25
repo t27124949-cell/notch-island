@@ -77,6 +77,14 @@ final class CalendarStore: ObservableObject {
         events = found.prefix(10).map(makeEvent)
     }
 
+    /// A meeting with a call link that starts within 5 minutes or is already under way.
+    var meetingSoon: CalendarEvent? {
+        let now = Date()
+        return events.first { event in
+            event.joinURL != nil && !event.isAllDay && event.start.timeIntervalSince(now) <= 300 && event.end > now
+        }
+    }
+
     private func makeEvent(_ event: EKEvent) -> CalendarEvent {
         CalendarEvent(
             id: "\(event.eventIdentifier ?? UUID().uuidString)-\(event.startDate.timeIntervalSince1970)",
@@ -92,7 +100,7 @@ final class CalendarStore: ObservableObject {
     /// A video-call link in the event's location, notes or URL.
     private static func joinLink(in event: EKEvent) -> URL? {
         let texts = [event.location, event.notes, event.url?.absoluteString].compactMap { $0 }
-        let pattern = #"https?://[^\s<>"']*(zoom\.us|zoomgov\.com|meet\.google\.com|teams\.microsoft\.com|teams\.live\.com|webex\.com|whereby\.com)[^\s<>"']*"#
+        let pattern = #"https?://[^\s<>"']*(zoom\.us|zoomgov\.com|meet\.google\.com|teams\.microsoft\.com|teams\.live\.com|webex\.com|whereby\.com|meet\.jit\.si|8x8\.vc)[^\s<>"']*"#
         guard let regex = try? NSRegularExpression(pattern: pattern, options: [.caseInsensitive]) else { return nil }
         for text in texts {
             let range = NSRange(text.startIndex..., in: text)
