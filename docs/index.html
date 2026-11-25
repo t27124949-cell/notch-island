@@ -1,0 +1,117 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Notch Island: your MacBook notch, made useful</title>
+<meta name="description" content="Notch Island turns the MacBook notch into a hub: music with synced lyrics, calendar with one-click join, quick controls, a file shelf with AirDrop, and approvals for coding agents.">
+<style>
+  :root{--bg:#0b0b0d;--card:#141418;--line:#25252b;--text:#f3f3f5;--dim:#a2a2ad;--accent:#3d8bff;--green:#34c759}
+  *{box-sizing:border-box}
+  body{margin:0;background:var(--bg);color:var(--text);font:16px/1.55 -apple-system,BlinkMacSystemFont,"SF Pro Text","Segoe UI",Roboto,sans-serif}
+  a{color:inherit}
+  .wrap{max-width:980px;margin:0 auto;padding:0 20px}
+  header{padding:22px 0;display:flex;justify-content:space-between;align-items:center}
+  .brand{font-weight:700;letter-spacing:-.01em}
+  nav a{color:var(--dim);text-decoration:none;margin-left:20px;font-size:15px}
+  nav a:hover{color:var(--text)}
+  .hero{text-align:center;padding:48px 0 28px}
+  h1{font-size:clamp(34px,6vw,60px);line-height:1.05;letter-spacing:-.03em;margin:0 0 18px}
+  .lead{color:var(--dim);font-size:clamp(17px,2.2vw,20px);max-width:640px;margin:0 auto 28px}
+  .btns{display:flex;gap:12px;justify-content:center;flex-wrap:wrap}
+  .btn{display:inline-block;padding:13px 24px;border-radius:999px;font-weight:600;text-decoration:none;font-size:16px}
+  .primary{background:var(--accent);color:#fff}
+  .ghost{border:1px solid var(--line);color:var(--text)}
+  .note{color:var(--dim);font-size:13px;margin-top:14px}
+  .shot{margin:40px auto 0;max-width:900px;border-radius:20px;border:1px solid var(--line);background:#000;padding:10px;box-shadow:0 30px 80px rgba(0,0,0,.6)}
+  .shot img{width:100%;display:block;border-radius:12px}
+  h2{font-size:clamp(26px,4vw,36px);letter-spacing:-.02em;text-align:center;margin:76px 0 28px}
+  .grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(260px,1fr));gap:14px}
+  .card{background:var(--card);border:1px solid var(--line);border-radius:16px;padding:20px}
+  .card h3{margin:0 0 6px;font-size:18px}
+  .card p{margin:0;color:var(--dim);font-size:15px}
+  .tag{display:inline-block;font-size:11px;font-weight:700;letter-spacing:.04em;text-transform:uppercase;color:var(--green);margin-bottom:8px}
+  .steps{counter-reset:s;display:grid;gap:12px;max-width:640px;margin:0 auto}
+  .steps li{list-style:none;background:var(--card);border:1px solid var(--line);border-radius:14px;padding:14px 16px 14px 56px;position:relative}
+  .steps li:before{counter-increment:s;content:counter(s);position:absolute;left:16px;top:12px;width:28px;height:28px;border-radius:50%;background:var(--accent);display:grid;place-items:center;font-weight:700;font-size:14px}
+  .steps{padding:0}
+  code{background:#1c1c22;border:1px solid var(--line);border-radius:6px;padding:2px 6px;font-size:14px}
+  .faq{max-width:700px;margin:0 auto}
+  details{background:var(--card);border:1px solid var(--line);border-radius:12px;padding:14px 16px;margin-bottom:10px}
+  summary{cursor:pointer;font-weight:600}
+  details p{color:var(--dim);margin:10px 0 0;font-size:15px}
+  footer{color:var(--dim);font-size:14px;text-align:center;padding:60px 0 40px}
+  [hidden]{display:none!important}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header>
+    <div class="brand">Notch Island</div>
+    <nav><a href="#features">Features</a><a href="#install">Install</a><a href="#faq">FAQ</a><a href="https://github.com/t27124949-cell/notch-island">GitHub</a></nav>
+  </header>
+
+  <section class="hero">
+    <h1>Make the notch<br>actually useful.</h1>
+    <p class="lead">Hover the notch and it opens into music with synced lyrics, your calendar, quick controls, a file shelf and more. No menu bar clutter. Runs on your Mac, nothing leaves it.</p>
+    <div class="btns">
+      <a class="btn primary" href="https://github.com/t27124949-cell/notch-island/releases/latest">Download for Mac</a>
+      <a class="btn ghost" href="#features">See what it does</a>
+    </div>
+    <p class="note">macOS 13 or later · MacBook with a notch · Free download</p>
+    <div class="shot"><img src="screenshot.png" alt="Notch Island open on the music tab with synced lyrics"></div>
+  </section>
+
+  <section id="features">
+    <h2>What's inside</h2>
+    <div class="grid">
+      <div class="card"><div class="tag">Music</div><h3>Player with synced lyrics</h3><p>Works with Spotify and Apple Music. Lyrics follow the singer. For songs with no timing, tap along once and it remembers.</p></div>
+      <div class="card"><div class="tag">Calendar</div><h3>Month view and one-click join</h3><p>Click a day to see its events. A green Join button opens Zoom, Meet, Teams, Webex, Whereby or Jitsi calls.</p></div>
+      <div class="card"><div class="tag">Coding agents</div><h3>Approve from the notch</h3><p>Allow or deny Claude Code and Codex requests without switching windows. If the notch isn't running, your agent asks you as usual.</p></div>
+      <div class="card"><div class="tag">Shelf</div><h3>Park files, AirDrop them</h3><p>Drag files onto the notch, pick the ones you want and AirDrop them from there.</p></div>
+      <div class="card"><div class="tag">Controls</div><h3>Volume, sound output, more</h3><p>Volume, dark mode, Wi-Fi, keep awake and Focus in one place. Swipe to change tabs or songs.</p></div>
+      <div class="card"><div class="tag">Alerts</div><h3>AirPods, timers, battery</h3><p>See when AirPods connect and their battery, get a chime when a timer ends, and see battery time left.</p></div>
+    </div>
+  </section>
+
+  <section id="support">
+    <h2>Free, and made by one person</h2>
+    <p class="lead" style="max-width:560px">Notch Island is free and open source (MIT licence). If it saves you time, you can help keep it going.</p>
+    <div class="btns">
+      <!-- Fill in href and remove "hidden" once a donation page exists -->
+      <a class="btn primary" id="donate" href="#" hidden>Buy me a coffee</a>
+      <a class="btn ghost" href="https://github.com/t27124949-cell/notch-island">Star it on GitHub</a>
+    </div>
+  </section>
+
+  <!-- About the maker: fill in, then remove "hidden" -->
+  <section id="maker" hidden>
+    <h2>Who made it</h2>
+    <p class="lead" style="max-width:560px">Built by YOUR NAME in Accra, Ghana. I make Mac apps and tools for small businesses. Say hello: <a href="mailto:YOUR_EMAIL">YOUR_EMAIL</a></p>
+  </section>
+
+  <section id="install">
+    <h2>Install in a minute</h2>
+    <ol class="steps">
+      <li>Download the latest release and unzip it.</li>
+      <li>Drag <b>NotchIsland.app</b> into your <b>Applications</b> folder.</li>
+      <li>Open it. If macOS blocks it, go to <b>System Settings → Privacy &amp; Security</b> and click <b>Open Anyway</b>.</li>
+      <li>Move your pointer to the notch. In Settings, turn on <b>Open at login</b>.</li>
+    </ol>
+  </section>
+
+  <section id="faq">
+    <h2>Questions</h2>
+    <div class="faq">
+      <details><summary>Why does macOS say it can't verify the app?</summary><p>The app isn't signed with a paid Apple Developer ID yet, so macOS asks you to confirm the first time. Use Open Anyway as shown above. The full source code is on GitHub for anyone to check.</p></details>
+      <details><summary>Does it send my data anywhere?</summary><p>No account and no tracking. The only network requests are the weather for the city you type, lyrics lookups (artist, title and length only) and the update check.</p></details>
+      <details><summary>What permissions does it ask for?</summary><p>Calendar (for the Calendar tab), control of Music or Spotify (for Now Playing) and Bluetooth (for AirPods alerts). All are optional.</p></details>
+      <details><summary>Why does the menu bar drop down when I touch the top of the screen?</summary><p>That's macOS's auto-hide menu bar. Change it in System Settings → Control Center → "Automatically hide and show the menu bar".</p></details>
+      <details><summary>Will it work on a Mac without a notch?</summary><p>It's built for notched MacBooks. On other Macs it sits at the top centre of the screen.</p></details>
+    </div>
+  </section>
+
+  <footer>Made in Accra, Ghana · <a href="https://github.com/t27124949-cell/notch-island/issues">Report a bug</a> · <a href="https://github.com/t27124949-cell/notch-island/releases">All releases</a></footer>
+</div>
+</body>
+</html>

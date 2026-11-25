@@ -1,5 +1,7 @@
 # Notch Island
 
+**Free and open source.** Website: https://t27124949-cell.github.io/notch-island/
+
 Turn the MacBook notch (or a virtual pill on Macs without one) into an interactive island: hover to expand it into a tabbed panel with quick controls, your open apps, a launcher, music, calendar, weather, clipboard history, notes, system stats and more. Every feature can be switched off in Settings.
 
 ![Notch Island screenshot](docs/screenshot1.png)
@@ -12,6 +14,15 @@ Turn the MacBook notch (or a virtual pill on Macs without one) into an interacti
 4. Allow the Calendar and Music/Spotify permission prompts if you want those tabs, and turn on **Open at login** in the app's Settings tab.
 
 Requires macOS 13 or later. It is designed for MacBooks with a notch and shows a virtual pill on other Macs.
+
+## Highlights
+- Music with synced lyrics (and tap-to-sync for songs without timing)
+- Calendar with a month view and one-click join for Zoom, Meet, Teams, Webex, Whereby and Jitsi
+- Approve Claude Code and Codex permission requests from the notch
+- File shelf with AirDrop, quick controls, AirPods alerts, timer and more
+
+## Support
+Notch Island is free. If it helps you, starring the repo is the easiest way to say thanks. Bugs and ideas: [open an issue](https://github.com/t27124949-cell/notch-island/issues).
 
 ## Build it yourself
 Requires macOS 13 or later and the Swift toolchain (Xcode or `xcode-select --install`).
