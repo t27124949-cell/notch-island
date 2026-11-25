@@ -242,7 +242,11 @@ final class NotchController {
     private func openIsland(reason: String) {
         note("opening (\(reason))")
         model.tab = model.settings.tabToOpen(lastTab: model.tab)
-        if !model.agents.pending.isEmpty, model.settings.isEnabled(.agents) { model.tab = .agents }
+        if !model.agents.pending.isEmpty, model.settings.isEnabled(.agents) {
+            model.tab = .agents
+        } else if model.calendar.meetingSoon != nil, model.settings.isEnabled(.calendar) {
+            model.tab = .calendar   // a call is about to start: show the Join button
+        }
         if model.settings.clickToOpen { model.isPinned = true } // a click-opened island stays until dismissed
         model.isOpen = true
     }
@@ -269,7 +273,7 @@ final class NotchController {
         let zone = screen.map { activeZone(on: $0) }
         let events = log.isEmpty ? "(none yet)" : log.joined(separator: "\n")
         return """
-        Build: v29 (shelf select + thumbnails)
+        Build: v31 (1.4)
         Poll ticks: \(pollTicks)   Slow ticks (>0.25s gap): \(slowTicks)   Longest gap: \(String(format: "%.2f", maxGap))s
         Open: \(model.isOpen)   Pinned: \(model.isPinned)   Island shown open: \(island?.isShownOpen ?? false)
         Panel: visible=\(panel.isVisible) onScreen=\(panel.occlusionState.contains(.visible)) level=\(panel.level.rawValue) ignoresMouse=\(panel.ignoresMouseEvents)

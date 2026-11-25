@@ -23,6 +23,7 @@
   .primary{background:var(--accent);color:#fff}
   .ghost{border:1px solid var(--line);color:var(--text)}
   .note{color:var(--dim);font-size:13px;margin-top:14px}
+<<<<<<< HEAD
   .stage{margin:44px auto 0;max-width:780px}
   .screen{position:relative;height:clamp(260px,46vw,340px);border-radius:18px;border:7px solid #1a1a1d;overflow:hidden;
     background:linear-gradient(135deg,#16213f 0%,#3a2a5c 45%,#8a3f62 78%,#e39a63 100%);box-shadow:0 30px 80px rgba(0,0,0,.65)}
@@ -45,6 +46,10 @@
   .chip[aria-pressed="true"]{color:var(--text);border-color:var(--accent);background:#10203a}
   .hint{color:var(--dim);font-size:14px;margin:12px 0 0}
   @media (prefers-reduced-motion:reduce){.island,.island .body{transition:none}.island:not(.open){animation:none}}
+=======
+  .shot{margin:40px auto 0;max-width:900px;border-radius:20px;border:1px solid var(--line);background:#000;padding:10px;box-shadow:0 30px 80px rgba(0,0,0,.6)}
+  .shot img{width:100%;display:block;border-radius:12px}
+>>>>>>> join-audio-dmg
   h2{font-size:clamp(26px,4vw,36px);letter-spacing:-.02em;text-align:center;margin:76px 0 28px}
   .grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(260px,1fr));gap:14px}
   .card{background:var(--card);border:1px solid var(--line);border-radius:16px;padding:20px}
@@ -61,7 +66,12 @@
   summary{cursor:pointer;font-weight:600}
   details p{color:var(--dim);margin:10px 0 0;font-size:15px}
   footer{color:var(--dim);font-size:14px;text-align:center;padding:60px 0 40px}
+<<<<<<< HEAD
   [hidden]{display:none!important}
+=======
+  /* Remove this block's "hidden" attribute in the HTML when the paid version is on sale */
+  .pro[hidden]{display:none}
+>>>>>>> join-audio-dmg
 </style>
 </head>
 <body>
@@ -79,6 +89,7 @@
       <a class="btn ghost" href="#features">See what it does</a>
     </div>
     <p class="note">macOS 13 or later · MacBook with a notch · Free download</p>
+<<<<<<< HEAD
     <div class="stage" id="stage">
       <div class="screen">
         <div class="menubar"><span class="dot"></span><b>Finder</b><span>File</span><span>Edit</span><span>View</span><span class="sp"></span><span>Wed 11:28</span></div>
@@ -90,6 +101,9 @@
       <p class="hint" id="hint">Hover over the notch to open it (or tap it on a phone)</p>
       <noscript><img src="screenshot1.png" alt="Notch Island open on the music tab" style="width:100%;border-radius:12px;margin-top:16px"></noscript>
     </div>
+=======
+    <div class="shot"><img src="screenshot.png" alt="Notch Island open on the music tab with synced lyrics"></div>
+>>>>>>> join-audio-dmg
   </section>
 
   <section id="features">
@@ -104,6 +118,7 @@
     </div>
   </section>
 
+<<<<<<< HEAD
   <section id="support">
     <h2>Free, and made by one person</h2>
     <p class="lead" style="max-width:560px">Notch Island is free and open source (MIT licence). If it saves you time, you can help keep it going.</p>
@@ -114,12 +129,20 @@
     </div>
   </section>
 
-  <!-- About the maker: fill in, then remove "hidden" -->
-  <section id="maker" hidden>
+  <section id="maker">
     <h2>Who made it</h2>
-    <p class="lead" style="max-width:560px">Built by YOUR NAME in Accra, Ghana. I make Mac apps and tools for small businesses. Say hello: <a href="mailto:YOUR_EMAIL">YOUR_EMAIL</a></p>
+    <p class="lead" style="max-width:560px">Built by Tony. I build Mac apps and digital tools. Questions, feedback or work: call or WhatsApp <a href="https://wa.me/233549047027">+233 54 904 7027</a>.</p>
   </section>
 
+=======
+  <section class="pro" hidden id="pro">
+    <h2>Notch Island Pro</h2>
+    <div class="grid">
+      <div class="card"><h3>$9, one time</h3><p>PAYMENT LINK GOES HERE</p></div>
+    </div>
+  </section>
+
+>>>>>>> join-audio-dmg
   <section id="install">
     <h2>Install in a minute</h2>
     <ol class="steps">
@@ -141,8 +164,9 @@
     </div>
   </section>
 
-  <footer>Made in Accra, Ghana · <a href="https://github.com/t27124949-cell/notch-island/issues">Report a bug</a> · <a href="https://github.com/t27124949-cell/notch-island/releases">All releases</a></footer>
+  <footer><a href="https://github.com/t27124949-cell/notch-island/issues">Report a bug</a> · <a href="https://github.com/t27124949-cell/notch-island/releases">All releases</a></footer>
 </div>
+<<<<<<< HEAD
 <script>
 (function(){
   var island=document.getElementById('island'),img=document.getElementById('shotimg'),chips=document.getElementById('chips'),hint=document.getElementById('hint');
@@ -186,5 +210,7 @@
   }
 })();
 </script>
+=======
+>>>>>>> join-audio-dmg
 </body>
 </html>

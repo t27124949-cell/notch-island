@@ -74,6 +74,8 @@ final class ActivityMonitor {
     private var lastCharging: Bool?
     private var announcedLow: Set<Int> = []
     private var lastTrackKey: String?
+    private var announcedMeetings: Set<String> = []
+    private var lastCalendarRefresh = Date.distantPast
 
     init(model: NotchModel) {
         self.model = model
@@ -99,7 +101,31 @@ final class ActivityMonitor {
         let s = model.settings
         checkBattery(wantsAmbient: s.ambientBattery, wantsPeek: s.activitiesEnabled && s.activityBattery)
         checkMusic(wantsAmbient: s.ambientMusic, wantsPeek: s.activitiesEnabled && s.activityMusic)
+        checkMeetings()
         sampledOnce = true
+    }
+
+    // MARK: Meetings
+
+    /// Five minutes before a call starts, say so in the notch. Opening the island then lands on the Calendar tab,
+    /// which has the green Join button.
+    private func checkMeetings() {
+        guard let model, model.settings.activitiesEnabled, model.settings.isEnabled(.calendar) else { return }
+        let now = Date()
+        if now.timeIntervalSince(lastCalendarRefresh) > 300 {
+            lastCalendarRefresh = now
+            model.calendar.refresh()
+        }
+        for event in model.calendar.events where event.joinURL != nil && !event.isAllDay {
+            let lead = event.start.timeIntervalSince(now)
+            guard lead <= 300, lead > -600, !announcedMeetings.contains(event.id) else { continue }
+            announcedMeetings.insert(event.id)
+            let minutes = max(Int((lead / 60).rounded(.up)), 0)
+            post(Activity(symbol: "video.fill", tint: .systemGreen,
+                          title: minutes == 0 ? "Meeting starting" : "Meeting in \(minutes) min",
+                          subtitle: event.title, duration: 8))
+            break
+        }
     }
 
     // MARK: Battery

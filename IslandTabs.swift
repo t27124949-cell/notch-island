@@ -439,6 +439,8 @@ final class NowPlayingTabView: TabContentView {
     private let volumeSlider = SeekSlider(frame: .zero)
     private let volumeLow = NSImageView()
     private let volumeHigh = NSImageView()
+    private let outputButton = ClosureButton.icon(UI.symbol("airplayaudio", size: 11)) {}
+    private var outputMenuHandler = MenuHandler()
     private var lastVolumeSend = Date.distantPast
     private let syncView = LyricsSyncView(frame: .zero)
     private let syncPill = ClosureButton(frame: .zero)
@@ -498,7 +500,7 @@ final class NowPlayingTabView: TabContentView {
         }
 
         for view in [artwork, appBadge, titleLabel, artistLabel, albumLabel, artworkLink, titleLink, artistLink, albumLink, messageLabel, lyricsView,
-                     seekSlider, elapsedLabel, remainingLabel, volumeSlider, volumeLow, volumeHigh, syncView, syncPill,
+                     seekSlider, elapsedLabel, remainingLabel, volumeSlider, volumeLow, volumeHigh, outputButton, syncView, syncPill,
                      previousButton, playButton, nextButton, settingsButton] as [NSView] {
             addSubview(view)
         }
@@ -529,6 +531,8 @@ final class NowPlayingTabView: TabContentView {
             self.controls.setVolume(value)
         }
         volumeSlider.onSeek = { [weak self] value in self?.controls.setVolume(value) }
+        outputButton.toolTip = "Sound output"
+        outputButton.handler = { [weak self] in self?.showOutputMenu() }
         controls.objectWillChange
             .receive(on: DispatchQueue.main)
             .sink { [weak self] _ in
@@ -616,8 +620,9 @@ final class NowPlayingTabView: TabContentView {
         artistLink.frame = artistLabel.frame
         let volumeY = controlsY + 38
         volumeLow.frame = NSRect(x: infoX, y: volumeY + 1, width: 14, height: 12)
-        volumeHigh.frame = NSRect(x: infoX + infoW - 16, y: volumeY + 1, width: 16, height: 12)
-        volumeSlider.frame = NSRect(x: infoX + 20, y: volumeY, width: max(infoW - 40, 20), height: 14)
+        volumeHigh.frame = NSRect(x: infoX + infoW - 38, y: volumeY + 1, width: 16, height: 12)
+        outputButton.frame = NSRect(x: infoX + infoW - 18, y: volumeY - 2, width: 18, height: 18)
+        volumeSlider.frame = NSRect(x: infoX + 20, y: volumeY, width: max(infoW - 62, 20), height: 14)
         albumLink.frame = albumLabel.frame
         messageLabel.frame = NSRect(x: infoX, y: top + 26, width: max(infoW - 10, 10), height: 44)
         settingsButton.frame.origin = NSPoint(x: infoX, y: top + 82)
@@ -626,6 +631,25 @@ final class NowPlayingTabView: TabContentView {
         syncView.frame = lyricsView.frame
         syncView.layoutAll()
         syncPill.frame = NSRect(x: lyricsView.frame.minX, y: bounds.height - 14, width: lyricsView.frame.width, height: 14)
+    }
+
+    // MARK: Sound output
+
+    private func showOutputMenu() {
+        let handler = MenuHandler()
+        outputMenuHandler = handler
+        let menu = NSMenu()
+        let current = AudioOutputs.currentID()
+        for output in AudioOutputs.list() {
+            let item = handler.item(output.name) { [weak self] in
+                AudioOutputs.setDefault(output.id)
+                self?.controls.refresh()   // each output has its own volume
+            }
+            item.state = output.id == current ? .on : .off
+            menu.addItem(item)
+        }
+        let show: () -> Void = { _ = menu.popUp(positioning: nil, at: NSPoint(x: 0, y: self.outputButton.bounds.height + 2), in: self.outputButton) }
+        if let holdOpen { holdOpen(show) } else { show() }
     }
 
     // MARK: Tap to sync
@@ -707,7 +731,7 @@ final class NowPlayingTabView: TabContentView {
         }
         lyricsView.suppressBadge = pillText != nil
         let showVolume = hasTrack && controls.volumeAvailable
-        for view in [volumeSlider, volumeLow, volumeHigh] as [NSView] { view.isHidden = !showVolume }
+        for view in [volumeSlider, volumeLow, volumeHigh, outputButton] as [NSView] { view.isHidden = !showVolume }
         if !volumeSlider.isDragging { volumeSlider.doubleValue = controls.volume }
         for view in [seekSlider, elapsedLabel, remainingLabel] as [NSView] { view.isHidden = !(hasTrack && showingSeek) }
         updateSeek(store.currentPosition())

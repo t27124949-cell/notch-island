@@ -1,23 +1,17 @@
-# Notch Island v1.3
+# Notch Island v1.4
 
-## What's new (since v1.1)
-- **Coding agent approvals**: approve or deny Claude Code and Codex permission requests from the notch, without switching windows. Connect from the new Coding Agents tab. If the app isn't running, your agent asks you as usual.
-- **New music player**: bigger artwork, player badge, progress bar with times, and a volume slider
-- **Tap to sync lyrics**: for songs with no timing, tap as each line starts. Your timing is saved on your Mac and used next time
-- **Lyrics**: animated synced lyrics, estimated scrolling for untimed lyrics, and a timing nudge in Settings
-- **Month calendar**: click a day to see its events, with a Join button for Zoom, Meet and Teams
-- **Swipe gestures**: two-finger swipes switch tabs, change songs, pin or close the island. Each direction is set in Settings
-- **Shelf**: click files to select them, picture thumbnails, and AirDrop the selected files
-- **AirPods and Bluetooth alerts** with battery levels
-- **Battery time remaining** on Home
-- **Timer sound** when the timer finishes (choose or turn off)
-- **Glass look** slider, from solid black to frosted glass
-- **Check for updates** and **Report a bug** buttons
-- First-run welcome that explains the permissions
-- A pinned island stays open when you click outside, and the island is a bit narrower
+## What's new
+- **Sound output picker**: switch between your speakers, AirPods and other outputs from the Music tab (the AirPlay icon next to the volume slider)
+- **Meeting banner**: five minutes before a call with a link, the notch announces it, and opening the island lands on the Calendar tab with the green Join button
+- **Jitsi links** now work with Join, alongside Zoom, Meet, Teams, Webex and Whereby
+- **Better bug reports**: the report button now includes your Mac model
+- **DMG installer**: drag Notch Island onto Applications
+
+## Earlier in v1.3
+Coding agent approvals (Claude Code and Codex), tap-to-sync lyrics, month calendar, swipe gestures, shelf with AirDrop, AirPods alerts, battery time remaining, timer sound, glass look, check for updates.
 
 ## Install
-1. Download `NotchIsland.zip` below and unzip it.
+1. Download `NotchIsland.dmg` (or `NotchIsland.zip`) below.
 2. Drag `NotchIsland.app` into **Applications** (replace the old one).
 3. Open it. If macOS blocks it, go to **System Settings → Privacy & Security** and click **Open Anyway**.
 
