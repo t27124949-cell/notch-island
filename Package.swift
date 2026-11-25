@@ -8,7 +8,7 @@ let package = Package(
         .executableTarget(
             name: "NotchIsland",
             path: ".",
-            exclude: ["README.md", "LICENSE", "docs", "Resources", "build_app.sh", "RELEASE_NOTES.md", "NotchIsland.app"],
+            exclude: ["README.md", "LICENSE", "docs", "Resources", "build_app.sh", "RELEASE_NOTES.md", "NotchIsland.app", "homebrew", "make_dmg.sh", "NotchIsland.dmg", "dmg_stage"],
             sources: [
                 "main.swift",
                 "AppDelegate.swift",
