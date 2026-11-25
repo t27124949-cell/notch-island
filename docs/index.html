@@ -25,6 +25,10 @@
   .note{color:var(--dim);font-size:13px;margin-top:14px}
   .shot{margin:40px auto 0;max-width:900px;border-radius:20px;border:1px solid var(--line);background:#000;padding:10px;box-shadow:0 30px 80px rgba(0,0,0,.6)}
   .shot img{width:100%;display:block;border-radius:12px}
+  .gallery{display:grid;grid-template-columns:repeat(auto-fit,minmax(280px,1fr));gap:16px}
+  .gallery figure{margin:0;background:#000;border:1px solid var(--line);border-radius:16px;padding:8px}
+  .gallery img{width:100%;display:block;border-radius:10px}
+  .gallery figcaption{color:var(--dim);font-size:14px;padding:10px 6px 4px;text-align:center}
   h2{font-size:clamp(26px,4vw,36px);letter-spacing:-.02em;text-align:center;margin:76px 0 28px}
   .grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(260px,1fr));gap:14px}
   .card{background:var(--card);border:1px solid var(--line);border-radius:16px;padding:20px}
@@ -59,7 +63,7 @@
       <a class="btn ghost" href="#features">See what it does</a>
     </div>
     <p class="note">macOS 13 or later · MacBook with a notch · Free download</p>
-    <div class="shot"><img src="screenshot.png" alt="Notch Island open on the music tab with synced lyrics"></div>
+    <div class="shot"><img src="screenshot1.png" alt="Notch Island open on the music tab with synced lyrics"></div>
   </section>
 
   <section id="features">
@@ -71,6 +75,15 @@
       <div class="card"><div class="tag">Shelf</div><h3>Park files, AirDrop them</h3><p>Drag files onto the notch, pick the ones you want and AirDrop them from there.</p></div>
       <div class="card"><div class="tag">Controls</div><h3>Volume, sound output, more</h3><p>Volume, dark mode, Wi-Fi, keep awake and Focus in one place. Swipe to change tabs or songs.</p></div>
       <div class="card"><div class="tag">Alerts</div><h3>AirPods, timers, battery</h3><p>See when AirPods connect and their battery, get a chime when a timer ends, and see battery time left.</p></div>
+    </div>
+  </section>
+
+  <section id="gallery">
+    <h2>A closer look</h2>
+    <div class="gallery">
+      <figure><img src="screenshot2.png" alt="Now playing with synced lyrics, volume and a sound output button"><figcaption>Music with synced lyrics, volume and sound output</figcaption></figure>
+      <figure><img src="screenshot3.png" alt="The shelf with two files selected for AirDrop"><figcaption>Shelf: select files and AirDrop them</figcaption></figure>
+      <figure><img src="screenshot4.png" alt="Settings with a switch for every feature"><figcaption>Every feature has an on/off switch</figcaption></figure>
     </div>
   </section>
 
