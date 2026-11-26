@@ -3,7 +3,7 @@
 # After each release: update `version` and `sha256` (make_dmg.sh prints the sha256).
 cask "notch-island" do
   version "1.3"
-  sha256 "REPLACE_WITH_SHA256_FROM_make_dmg.sh"
+  sha256 "35861f516be477d14152ce4e4b77cfc17e3994aeeb7d5f938f320d411663a31a"
 
   url "https://github.com/t27124949-cell/notch-island/releases/download/v#{version}/NotchIsland.dmg"
   name "Notch Island"
