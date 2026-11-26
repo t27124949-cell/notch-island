@@ -273,7 +273,7 @@ final class NotchController {
         let zone = screen.map { activeZone(on: $0) }
         let events = log.isEmpty ? "(none yet)" : log.joined(separator: "\n")
         return """
-        Build: v31 (1.4)
+        Build: v32 (1.3)
         Poll ticks: \(pollTicks)   Slow ticks (>0.25s gap): \(slowTicks)   Longest gap: \(String(format: "%.2f", maxGap))s
         Open: \(model.isOpen)   Pinned: \(model.isPinned)   Island shown open: \(island?.isShownOpen ?? false)
         Panel: visible=\(panel.isVisible) onScreen=\(panel.occlusionState.contains(.visible)) level=\(panel.level.rawValue) ignoresMouse=\(panel.ignoresMouseEvents)

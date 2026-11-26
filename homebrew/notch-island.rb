@@ -2,7 +2,7 @@
 # Lives in its own GitHub repo named "homebrew-notch-island", at Casks/notch-island.rb.
 # After each release: update `version` and `sha256` (make_dmg.sh prints the sha256).
 cask "notch-island" do
-  version "1.4"
+  version "1.3"
   sha256 "REPLACE_WITH_SHA256_FROM_make_dmg.sh"
 
   url "https://github.com/t27124949-cell/notch-island/releases/download/v#{version}/NotchIsland.dmg"
