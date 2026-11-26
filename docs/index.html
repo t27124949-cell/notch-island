@@ -30,10 +30,12 @@
     background:rgba(0,0,0,.28);backdrop-filter:blur(8px);font-size:12px;color:rgba(255,255,255,.85)}
   .menubar .sp{flex:1}
   .menubar .dot{width:11px;height:13px;border-radius:50% 50% 45% 45%;background:rgba(255,255,255,.85)}
-  .island{position:absolute;top:0;left:50%;transform:translateX(-50%);width:190px;height:30px;background:#000;
-    border-radius:0 0 15px 15px;overflow:hidden;cursor:pointer;outline:none;
+  .island{position:absolute;top:0;left:50%;transform:translateX(-50%);width:298px;height:36px;background:#000;
+    border-radius:0 0 18px 18px;overflow:hidden;cursor:pointer;outline:none;
     transition:width .5s cubic-bezier(.2,.8,.2,1),height .5s cubic-bezier(.2,.8,.2,1),border-radius .5s cubic-bezier(.2,.8,.2,1),box-shadow .5s}
   .island.open{width:var(--w,560px);height:var(--h,220px);border-radius:0 0 28px 28px;box-shadow:0 24px 60px rgba(0,0,0,.55)}
+  .island .amb{position:absolute;inset:0;width:100%;height:100%;object-fit:cover;transition:opacity .2s .1s}
+  .island.open .amb{opacity:0;transition:opacity .12s}
   .island:focus-visible{box-shadow:0 0 0 2px var(--accent)}
   .island .body{position:absolute;inset:0;opacity:0;transition:opacity .15s}
   .island.open .body{opacity:1;transition:opacity .3s .18s}
@@ -83,11 +85,12 @@
       <div class="screen">
         <div class="menubar"><span class="dot"></span><b>Finder</b><span>File</span><span>Edit</span><span>View</span><span class="sp"></span><span>Wed 11:28</span></div>
         <div class="island" id="island" tabindex="0" role="button" aria-label="Notch Island demo. Hover or tap to open">
+          <img class="amb" src="screenshot5.png" alt="The notch while music is playing">
           <div class="body"><img id="shotimg" src="screenshot2.png" alt="Notch Island open"></div>
         </div>
       </div>
       <div class="chips" id="chips"></div>
-      <p class="hint" id="hint">Hover over the notch to open it (or tap it on a phone)</p>
+      <p class="hint" id="hint">The notch shows what's playing. Hover over it to open it (or tap it on a phone)</p>
       <noscript><img src="screenshot1.png" alt="Notch Island open on the music tab" style="width:100%;border-radius:12px;margin-top:16px"></noscript>
     </div>
   </section>
@@ -146,6 +149,7 @@
 (function(){
   var island=document.getElementById('island'),img=document.getElementById('shotimg'),chips=document.getElementById('chips'),hint=document.getElementById('hint');
   var shots=[
+    {src:'screenshot1.png',label:'Home',w:1108,h:294},
     {src:'screenshot2.png',label:'Music',w:1102,h:432},
     {src:'screenshot3.png',label:'Shelf',w:1104,h:388},
     {src:'screenshot4.png',label:'Settings',w:1098,h:460}
@@ -170,7 +174,7 @@
     b.addEventListener('pointerenter',function(){clearTimeout(closeTimer);});
     chips.appendChild(b);
   });
-  show(0);
+  show(1);   // start on Music: the closed notch is showing a song
   island.addEventListener('pointerenter',function(e){if(e.pointerType==='mouse'){touched=true;open();}});
   island.addEventListener('pointerleave',function(e){if(e.pointerType==='mouse')closeSoon();});
   island.addEventListener('click',function(){touched=true;island.classList.toggle('open');});
