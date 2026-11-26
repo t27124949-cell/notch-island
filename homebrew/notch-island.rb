@@ -10,14 +10,13 @@ cask "notch-island" do
   desc "Dynamic-island-style hub for the MacBook notch"
   homepage "https://github.com/t27124949-cell/notch-island"
 
-  depends_on macos: ">= :ventura"
+  depends_on macos: :ventura
 
   app "NotchIsland.app"
 
   # The app is not signed with an Apple Developer ID yet, so clear the download quarantine flag.
-  postflight do
-    system_command "/usr/bin/xattr",
-                   args: ["-dr", "com.apple.quarantine", "#{appdir}/NotchIsland.app"]
+  postflight_steps do
+    run "/usr/bin/xattr", args: ["-dr", "com.apple.quarantine", "/Applications/NotchIsland.app"], must_succeed: false
   end
 
   zap trash: [
