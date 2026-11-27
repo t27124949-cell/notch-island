@@ -5,25 +5,49 @@
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Notch Island: your MacBook notch, made useful</title>
 <meta name="description" content="Notch Island turns the MacBook notch into a hub: music with synced lyrics, calendar with one-click join, quick controls, a file shelf with AirDrop, and approvals for coding agents.">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,500;12..96,700;12..96,800&family=Instrument+Sans:wght@400;500;600&display=swap" rel="stylesheet">
 <style>
-  :root{--bg:#0b0b0d;--card:#141418;--line:#25252b;--text:#f3f3f5;--dim:#a2a2ad;--accent:#3d8bff;--green:#34c759}
+  :root{
+    --paper:#e8eaed;      /* aluminium */
+    --panel:#f6f7f8;
+    --ink:#101216;
+    --dim:#565b66;
+    --line:#cfd2d8;
+    --gold:#f2b600;
+    --accent:#3d8bff;     /* only used by the demo's notch pulse */
+    --display:"Bricolage Grotesque","Avenir Next","Segoe UI",system-ui,sans-serif;
+    --text:"Instrument Sans",-apple-system,BlinkMacSystemFont,"SF Pro Text","Segoe UI",sans-serif;
+  }
   *{box-sizing:border-box}
-  body{margin:0;background:var(--bg);color:var(--text);font:16px/1.55 -apple-system,BlinkMacSystemFont,"SF Pro Text","Segoe UI",Roboto,sans-serif}
-  a{color:inherit}
-  .wrap{max-width:980px;margin:0 auto;padding:0 20px}
-  header{padding:22px 0;display:flex;justify-content:space-between;align-items:center}
-  .brand{font-weight:700;letter-spacing:-.01em}
-  nav a{color:var(--dim);text-decoration:none;margin-left:20px;font-size:15px}
-  nav a:hover{color:var(--text)}
-  .hero{text-align:center;padding:48px 0 28px}
-  h1{font-size:clamp(34px,6vw,60px);line-height:1.05;letter-spacing:-.03em;margin:0 0 18px}
-  .lead{color:var(--dim);font-size:clamp(17px,2.2vw,20px);max-width:640px;margin:0 auto 28px}
-  .btns{display:flex;gap:12px;justify-content:center;flex-wrap:wrap}
-  .btn{display:inline-block;padding:13px 24px;border-radius:999px;font-weight:600;text-decoration:none;font-size:16px}
-  .primary{background:var(--accent);color:#fff}
-  .ghost{border:1px solid var(--line);color:var(--text)}
-  .note{color:var(--dim);font-size:13px;margin-top:14px}
-  .stage{margin:44px auto 0;max-width:780px}
+  html{scroll-behavior:smooth}
+  body{margin:0;background:var(--paper);color:var(--ink);font:17px/1.6 var(--text);-webkit-font-smoothing:antialiased}
+  a{color:inherit;text-underline-offset:3px}
+  :focus-visible{outline:3px solid var(--ink);outline-offset:3px;border-radius:4px}
+  .wrap{max-width:1040px;margin:0 auto;padding:0 20px}
+  [hidden]{display:none!important}
+
+  header{padding:22px 0;display:flex;justify-content:space-between;align-items:center;gap:16px;flex-wrap:wrap}
+  .brand{font:800 20px/1 var(--display);letter-spacing:-.02em;display:flex;align-items:center;gap:10px}
+  .brand i{display:block;width:30px;height:12px;background:var(--ink);border-radius:0 0 8px 8px}
+  nav a{text-decoration:none;margin-left:22px;font-size:15px;font-weight:500;color:var(--dim)}
+  nav a:hover{color:var(--ink);text-decoration:underline}
+
+  .hero{padding:56px 0 0}
+  h1{font:800 clamp(44px,8.4vw,104px)/.95 var(--display);letter-spacing:-.045em;margin:0 0 28px;max-width:11ch}
+  .lead{color:var(--dim);font-size:clamp(18px,2.1vw,21px);max-width:52ch;margin:0 0 30px}
+  .btns{display:flex;gap:12px;flex-wrap:wrap}
+  .btn{display:inline-block;padding:14px 26px;border-radius:999px;font-weight:600;text-decoration:none;font-size:16px;transition:transform .15s}
+  .btn:active{transform:scale(.98)}
+  .primary{background:var(--gold);color:var(--ink)}
+  .primary:hover{background:#ffc61a}
+  .ghost{border:1.5px solid var(--ink);color:var(--ink)}
+  .ghost:hover{background:var(--ink);color:var(--paper)}
+  .note{color:var(--dim);font-size:15px;margin:18px 0 0}
+
+  /* ---- The interactive notch demo (unchanged behaviour) ---- */
+  .stage{margin:56px auto 0;max-width:780px}
   .screen{position:relative;height:clamp(260px,46vw,340px);border-radius:18px;border:7px solid #1a1a1d;overflow:hidden;
     background:linear-gradient(135deg,#16213f 0%,#3a2a5c 45%,#8a3f62 78%,#e39a63 100%);box-shadow:0 30px 80px rgba(0,0,0,.65)}
   .menubar{position:absolute;inset:0 0 auto 0;height:30px;display:flex;align-items:center;gap:16px;padding:0 14px;
@@ -42,45 +66,77 @@
   .island img{width:100%;height:100%;display:block;object-fit:cover;object-position:top}
   .island:not(.open){animation:pulse 2.4s ease-in-out infinite}
   @keyframes pulse{0%,100%{box-shadow:0 0 0 0 rgba(61,139,255,0)}50%{box-shadow:0 0 0 6px rgba(61,139,255,.35)}}
-  .chips{display:flex;gap:8px;justify-content:center;margin-top:16px;flex-wrap:wrap}
-  .chip{background:var(--card);border:1px solid var(--line);color:var(--dim);border-radius:999px;padding:7px 16px;font:inherit;font-size:14px;cursor:pointer}
-  .chip[aria-pressed="true"]{color:var(--text);border-color:var(--accent);background:#10203a}
-  .hint{color:var(--dim);font-size:14px;margin:12px 0 0}
-  @media (prefers-reduced-motion:reduce){.island,.island .body{transition:none}.island:not(.open){animation:none}}
-  h2{font-size:clamp(26px,4vw,36px);letter-spacing:-.02em;text-align:center;margin:76px 0 28px}
-  .grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(260px,1fr));gap:14px}
-  .card{background:var(--card);border:1px solid var(--line);border-radius:16px;padding:20px}
-  .card h3{margin:0 0 6px;font-size:18px}
-  .card p{margin:0;color:var(--dim);font-size:15px}
-  .tag{display:inline-block;font-size:11px;font-weight:700;letter-spacing:.04em;text-transform:uppercase;color:var(--green);margin-bottom:8px}
-  .steps{counter-reset:s;display:grid;gap:12px;max-width:640px;margin:0 auto}
-  .steps li{list-style:none;background:var(--card);border:1px solid var(--line);border-radius:14px;padding:14px 16px 14px 56px;position:relative}
-  .steps li:before{counter-increment:s;content:counter(s);position:absolute;left:16px;top:12px;width:28px;height:28px;border-radius:50%;background:var(--accent);display:grid;place-items:center;font-weight:700;font-size:14px}
-  .steps{padding:0}
-  code{background:#1c1c22;border:1px solid var(--line);border-radius:6px;padding:2px 6px;font-size:14px}
-  .faq{max-width:700px;margin:0 auto}
-  details{background:var(--card);border:1px solid var(--line);border-radius:12px;padding:14px 16px;margin-bottom:10px}
-  summary{cursor:pointer;font-weight:600}
-  details p{color:var(--dim);margin:10px 0 0;font-size:15px}
-  footer{color:var(--dim);font-size:14px;text-align:center;padding:60px 0 40px}
-  [hidden]{display:none!important}
+  .chips{display:flex;gap:8px;justify-content:center;margin-top:18px;flex-wrap:wrap}
+  .chip{background:transparent;border:1.5px solid var(--ink);color:var(--ink);border-radius:999px;padding:7px 18px;font:500 15px var(--text);cursor:pointer}
+  .chip:hover{background:var(--panel)}
+  .chip[aria-pressed="true"]{background:var(--ink);color:var(--paper)}
+  .hint{color:var(--dim);font-size:15px;margin:14px 0 0;text-align:center}
+  @media (prefers-reduced-motion:reduce){.island,.island .body{transition:none}.island:not(.open){animation:none}html{scroll-behavior:auto}}
+
+  /* ---- Sections ---- */
+  section{padding-top:112px}
+  h2{font:800 clamp(30px,5vw,52px)/1 var(--display);letter-spacing:-.035em;margin:0 0 36px}
+
+  .specs{border-top:2px solid var(--ink)}
+  .spec{display:grid;grid-template-columns:minmax(0,5fr) minmax(0,7fr);gap:8px 40px;padding:26px 0;border-bottom:1px solid var(--line)}
+  .spec h3{font:700 clamp(21px,2.6vw,27px)/1.15 var(--display);letter-spacing:-.02em;margin:0}
+  .spec p{margin:0;color:var(--dim);max-width:56ch}
+  @media (max-width:700px){.spec{grid-template-columns:1fr}}
+
+  /* Install: centred */
+  #install{text-align:center}
+  #install h2{margin-bottom:14px}
+  #install .sub{color:var(--dim);margin:0 auto 26px;max-width:46ch}
+  .cmd{display:flex;align-items:center;justify-content:space-between;gap:14px;max-width:700px;margin:0 auto;
+    background:var(--ink);color:#f3f3f5;border-radius:16px;padding:10px 10px 10px 22px;text-align:left}
+  .cmd code{font:500 15px/1.4 ui-monospace,"SF Mono",Menlo,Consolas,monospace;word-break:break-all;user-select:all;padding:6px 0}
+  .cmd code:before{content:"$ ";color:var(--gold)}
+  .copy{flex:none;background:var(--gold);color:var(--ink);border:0;border-radius:10px;padding:11px 18px;font:600 15px var(--text);cursor:pointer;min-width:84px}
+  .copy:hover{background:#ffc61a}
+  .or{color:var(--dim);margin:44px 0 22px}
+  .steps{counter-reset:s;max-width:620px;margin:0 auto;padding:0;text-align:left}
+  .steps li{list-style:none;position:relative;padding:14px 0 14px 54px;border-top:1px solid var(--line)}
+  .steps li:last-child{border-bottom:1px solid var(--line)}
+  .steps li:before{counter-increment:s;content:counter(s);position:absolute;left:0;top:13px;width:32px;height:32px;border-radius:50%;
+    background:var(--ink);color:var(--paper);display:grid;place-items:center;font:700 15px var(--display)}
+
+  /* Support + maker */
+  .band{background:var(--ink);color:#f3f3f5;border-radius:28px;padding:clamp(28px,5vw,56px);display:grid;grid-template-columns:1.2fr 1fr;gap:36px}
+  .band h2{margin-bottom:14px}
+  .band p{margin:0 0 22px;color:#b9bcc5;max-width:46ch}
+  .band .ghost{border-color:#f3f3f5;color:#f3f3f5}
+  .band .ghost:hover{background:#f3f3f5;color:var(--ink)}
+  .band h3{font:700 22px/1.2 var(--display);margin:0 0 10px;letter-spacing:-.02em}
+  .band a{color:var(--gold)}
+  @media (max-width:760px){.band{grid-template-columns:1fr}}
+
+  .faq{max-width:760px}
+  details{border-bottom:1px solid var(--line);padding:18px 0}
+  details:first-of-type{border-top:2px solid var(--ink)}
+  summary{cursor:pointer;font-weight:600;font-size:18px;list-style:none;display:flex;justify-content:space-between;gap:16px}
+  summary::-webkit-details-marker{display:none}
+  summary:after{content:"+";font:500 24px/1 var(--display);flex:none}
+  details[open] summary:after{content:"\2212"}
+  details p{color:var(--dim);margin:12px 0 0;max-width:62ch}
+  footer{color:var(--dim);font-size:15px;padding:96px 0 48px;display:flex;gap:22px;flex-wrap:wrap}
 </style>
 </head>
 <body>
 <div class="wrap">
   <header>
-    <div class="brand">Notch Island</div>
-    <nav><a href="#features">Features</a><a href="#install">Install</a><a href="#faq">FAQ</a><a href="https://github.com/t27124949-cell/notch-island">GitHub</a></nav>
+    <div class="brand"><i aria-hidden="true"></i>Notch Island</div>
+    <nav><a href="#features">What's inside</a><a href="#install">Install</a><a href="#faq">Questions</a><a href="https://github.com/t27124949-cell/notch-island">GitHub</a></nav>
   </header>
 
-  <section class="hero">
-    <h1>Make the notch<br>actually useful.</h1>
-    <p class="lead">Hover the notch and it opens into music with synced lyrics, your calendar, quick controls, a file shelf and more. No menu bar clutter. Runs on your Mac, nothing leaves it.</p>
+  <main>
+  <section class="hero" style="padding-top:56px">
+    <h1>Make the notch actually useful.</h1>
+    <p class="lead">Hover the notch and it opens into music with synced lyrics, your calendar, quick controls, a file shelf and more. Nothing leaves your Mac.</p>
     <div class="btns">
       <a class="btn primary" href="https://github.com/t27124949-cell/notch-island/releases/latest">Download for Mac</a>
-      <a class="btn ghost" href="#features">See what it does</a>
+      <a class="btn ghost" href="#install">Install with Homebrew</a>
     </div>
-    <p class="note">macOS 13 or later · MacBook with a notch · Free download</p>
+    <p class="note">Free and open source. Needs macOS 13 or later and a MacBook with a notch.</p>
     <div class="stage" id="stage">
       <div class="screen">
         <div class="menubar"><span class="dot"></span><b>Finder</b><span>File</span><span>Edit</span><span>View</span><span class="sp"></span><span>Wed 11:28</span></div>
@@ -97,42 +153,48 @@
 
   <section id="features">
     <h2>What's inside</h2>
-    <div class="grid">
-      <div class="card"><div class="tag">Music</div><h3>Player with synced lyrics</h3><p>Works with Spotify and Apple Music. Lyrics follow the singer. For songs with no timing, tap along once and it remembers.</p></div>
-      <div class="card"><div class="tag">Calendar</div><h3>Month view and one-click join</h3><p>Click a day to see its events. A green Join button opens Zoom, Meet, Teams, Webex, Whereby or Jitsi calls.</p></div>
-      <div class="card"><div class="tag">Coding agents</div><h3>Approve from the notch</h3><p>Allow or deny Claude Code and Codex requests without switching windows. If the notch isn't running, your agent asks you as usual.</p></div>
-      <div class="card"><div class="tag">Shelf</div><h3>Park files, AirDrop them</h3><p>Drag files onto the notch, pick the ones you want and AirDrop them from there.</p></div>
-      <div class="card"><div class="tag">Controls</div><h3>Volume, sound output, more</h3><p>Volume, dark mode, Wi-Fi, keep awake and Focus in one place. Swipe to change tabs or songs.</p></div>
-      <div class="card"><div class="tag">Alerts</div><h3>AirPods, timers, battery</h3><p>See when AirPods connect and their battery, get a chime when a timer ends, and see battery time left.</p></div>
+    <div class="specs">
+      <div class="spec"><h3>Music with synced lyrics</h3><p>Works with Spotify and Apple Music. Lyrics follow the singer. For songs with no timing, tap along once and it remembers.</p></div>
+      <div class="spec"><h3>Calendar and one-click join</h3><p>Click a day to see its events. A green Join button opens Zoom, Meet, Teams, Webex, Whereby or Jitsi calls.</p></div>
+      <div class="spec"><h3>Approve coding agents</h3><p>Allow or deny Claude Code and Codex requests without switching windows. If the notch isn't running, your agent asks you as usual.</p></div>
+      <div class="spec"><h3>A shelf for files</h3><p>Drag files onto the notch, pick the ones you want and AirDrop them from there.</p></div>
+      <div class="spec"><h3>Volume, sound output and more</h3><p>Volume, dark mode, Wi-Fi, keep awake and Focus in one place. Swipe to change tabs or songs.</p></div>
+      <div class="spec"><h3>AirPods, timers and battery</h3><p>See when AirPods connect and their battery, get a chime when a timer ends, and see battery time left.</p></div>
     </div>
-  </section>
-
-  <section id="support">
-    <h2>Free, and made by one person</h2>
-    <p class="lead" style="max-width:560px">Notch Island is free and open source (MIT licence). If it saves you time, you can help keep it going.</p>
-    <div class="btns">
-      <!-- Fill in href and remove "hidden" once a donation page exists -->
-      <a class="btn primary" id="donate" href="#" hidden>Buy me a coffee</a>
-      <a class="btn ghost" href="https://github.com/t27124949-cell/notch-island">Star it on GitHub</a>
-    </div>
-  </section>
-
-  <section id="maker">
-    <h2>Who made it</h2>
-    <p class="lead" style="max-width:560px">Built by Tony. I build Mac apps and digital tools. Questions, feedback or work: call or WhatsApp <a href="https://wa.me/233549047027">+233 54 904 7027</a>.</p>
   </section>
 
   <section id="install">
     <h2>Install in a minute</h2>
-    <p class="lead" style="max-width:640px"><b>Easiest:</b> paste this into Terminal. It downloads the .dmg and installs the app for you.</p>
-    <p style="margin:12px 0 26px"><code style="display:inline-block;padding:10px 14px;user-select:all">brew install --cask t27124949-cell/notch-island/notch-island</code></p>
-    <p class="lead" style="max-width:640px">Or install it by hand:</p>
+    <p class="sub">The easiest way: paste this into Terminal. It downloads the .dmg and installs the app for you.</p>
+    <div class="cmd">
+      <code id="cmdtext">brew install --cask t27124949-cell/notch-island/notch-island</code>
+      <button class="copy" id="copy" type="button">Copy</button>
+    </div>
+    <p class="or">Or install it by hand</p>
     <ol class="steps">
       <li>Download <b>NotchIsland.dmg</b> from the <a href="https://github.com/t27124949-cell/notch-island/releases/latest">latest release</a> (a <b>.zip</b> is there too) and open it.</li>
       <li>Drag <b>NotchIsland.app</b> into your <b>Applications</b> folder.</li>
       <li>Open it. If macOS blocks it, go to <b>System Settings → Privacy &amp; Security</b> and click <b>Open Anyway</b>.</li>
       <li>Move your pointer to the notch. In Settings, turn on <b>Open at login</b>.</li>
     </ol>
+  </section>
+
+  <section id="support">
+    <div class="band">
+      <div id="donatebox">
+        <h2>Free, and made by one person</h2>
+        <p>Notch Island is free and open source under the MIT licence. If it saves you time, you can help keep it going.</p>
+        <div class="btns">
+          <!-- Fill in href and remove "hidden" once a donation page exists -->
+          <a class="btn primary" id="donate" href="#" hidden>Buy me a coffee</a>
+          <a class="btn ghost" href="https://github.com/t27124949-cell/notch-island">Star it on GitHub</a>
+        </div>
+      </div>
+      <div id="maker">
+        <h3>Who made it</h3>
+        <p>Built by Tony. I build Mac apps and digital tools. Questions, feedback or work: call or WhatsApp <a href="https://wa.me/233549047027">+233 54 904 7027</a>.</p>
+      </div>
+    </div>
   </section>
 
   <section id="faq">
@@ -145,8 +207,9 @@
       <details><summary>Will it work on a Mac without a notch?</summary><p>It's built for notched MacBooks. On other Macs it sits at the top centre of the screen.</p></details>
     </div>
   </section>
+  </main>
 
-  <footer><a href="https://github.com/t27124949-cell/notch-island/issues">Report a bug</a> · <a href="https://github.com/t27124949-cell/notch-island/releases">All releases</a></footer>
+  <footer><a href="https://github.com/t27124949-cell/notch-island/issues">Report a bug</a><a href="https://github.com/t27124949-cell/notch-island/releases">All releases</a><a href="https://github.com/t27124949-cell/notch-island">Source code</a></footer>
 </div>
 <script>
 (function(){
@@ -190,6 +253,17 @@
       setTimeout(function(){if(!touched)close();},3600);
     },1400);
   }
+})();
+// Copy button for the Homebrew command
+(function(){
+  var btn=document.getElementById('copy'),txt=document.getElementById('cmdtext');
+  if(!btn||!txt)return;
+  btn.addEventListener('click',function(){
+    var t=txt.textContent.trim();
+    function done(){btn.textContent='Copied';setTimeout(function(){btn.textContent='Copy';},1800);}
+    if(navigator.clipboard&&navigator.clipboard.writeText){navigator.clipboard.writeText(t).then(done,fallback);}else{fallback();}
+    function fallback(){var r=document.createRange();r.selectNodeContents(txt);var s=getSelection();s.removeAllRanges();s.addRange(r);try{document.execCommand('copy');done();}catch(e){}}
+  });
 })();
 </script>
 </body>
