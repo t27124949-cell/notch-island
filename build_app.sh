@@ -2,7 +2,8 @@
 # Builds NotchIsland.app (a menu-bar-only app with no Dock icon).
 set -euo pipefail
 
-swift build -c release
+# Universal binary: runs on Apple Silicon (M1 and later) and Intel Macs
+swift build -c release --arch arm64 --arch x86_64
 
 APP="NotchIsland.app"
 rm -rf "$APP"
@@ -17,7 +18,7 @@ for size in 16 32 128 256 512; do
     sips -z $double $double Resources/AppIcon.png --out "$ICONSET/icon_${size}x${size}@2x.png" >/dev/null
 done
 iconutil -c icns "$ICONSET" -o "$APP/Contents/Resources/AppIcon.icns"
-cp .build/release/NotchIsland "$APP/Contents/MacOS/NotchIsland"
+cp "$(swift build -c release --arch arm64 --arch x86_64 --show-bin-path)/NotchIsland" "$APP/Contents/MacOS/NotchIsland"
 
 cat > "$APP/Contents/Info.plist" <<'PLIST'
 <?xml version="1.0" encoding="UTF-8"?>

@@ -13,7 +13,7 @@ Turn the MacBook notch (or a virtual pill on Macs without one) into an interacti
 3. Open it. The app is not notarized by Apple, so macOS will block it the first time: open **System Settings → Privacy & Security**, scroll down and click **Open Anyway** next to Notch Island, then confirm. (On older macOS, right-click the app and choose Open.)
 4. Allow the Calendar and Music/Spotify permission prompts if you want those tabs, and turn on **Open at login** in the app's Settings tab.
 
-Requires macOS 13 or later. It is designed for MacBooks with a notch and shows a virtual pill on other Macs.
+Requires macOS 13 or later. Runs on Apple Silicon and Intel Macs (universal build). It is designed for MacBooks with a notch and shows a virtual pill on other Macs.
 
 ## Highlights
 - Music with synced lyrics (and tap-to-sync for songs without timing)
